@@ -4,4 +4,5 @@
     <color name="splash_bg">#FFF8F2</color>
     <color name="primary">#FF8A50</color>
     <color name="primary_dark">#E86F3A</color>
+    <color name="ic_launcher_background">#FF8A50</color>
 </resources>
