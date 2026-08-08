@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- همان رنگ پس زمینه اپلیکیشن -->
-    <color name="splash_bg">#FDF6E3</color>
+    <!-- رنگ‌های اپلیکیشن کارتونیا -->
+    <color name="splash_bg">#FFF8F2</color>
+    <color name="primary">#FF8A50</color>
+    <color name="primary_dark">#E86F3A</color>
 </resources>

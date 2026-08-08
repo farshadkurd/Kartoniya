@@ -3,4 +3,9 @@
     <style name="NormalTheme" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/splash_bg</item>
     </style>
+
+    <style name="LaunchTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
 </resources>

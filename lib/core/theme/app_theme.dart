@@ -1,106 +1,301 @@
 // lib/core/theme/app_theme.dart
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'app_colors.dart';
 
+/// 🎨 تم اصلی اپلیکیشن کارتونیا
+/// شامل تم روشن و تاریک با تمام تنظیمات Material 3
 class AppTheme {
   AppTheme._();
 
-  // --- رنگ‌های اصلی برند (Brand Colors) ---
-  static const Color primaryLight = Color(0xFFffecd2); // پس‌زمینه ملایم
-  static const Color primary = Color(0xFFffc078);      // نارنجی پاستلی
-  static const Color primaryDark = Color(0xFFf09819);  // پررنگ برای دکمه‌ها
-  static const Color secondary = Color(0xFF4facfe);    // آبی شفاف
-  static const Color secondaryDark = Color(0xFF00f2fe);
-  
-  // --- رنگ‌های خنثی (Neutral) ---
-  static const Color background = Color(0xFFfff9f0);    // کرم بسیار کم‌رنگ چشم را خسته نمی‌کند
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color textMain = Color(0xFF2d3436);
-  static const Color textSub = Color(0xFF636e72);
-  
-  // --- رنگ‌های ویژه (Special) ---
-  static const Color goldGlow = Color(0xFFFFD700);
-  static const Color success = Color(0xFF00b894);
+  // ═══════════════════════════════════════
+  // ثابت‌های طراحی (Design Tokens)
+  // ═══════════════════════════════════════
+  static const double radiusSmall = 12.0;
+  static const double radiusMedium = 18.0;
+  static const double radiusLarge = 24.0;
+  static const double radiusXLarge = 32.0;
+  static const double radiusCircular = 100.0;
 
-  // --- تم روشن (Light Theme) ---
+  static const double spacingXs = 4.0;
+  static const double spacingSm = 8.0;
+  static const double spacingMd = 16.0;
+  static const double spacingLg = 24.0;
+  static const double spacingXl = 32.0;
+  static const double spacingXxl = 48.0;
+
+  static const double elevationLow = 2.0;
+  static const double elevationMedium = 4.0;
+  static const double elevationHigh = 8.0;
+
+  // ═══════════════════════════════════════
+  // سایه‌های استاندارد
+  // ═══════════════════════════════════════
+  static List<BoxShadow> get softShadow => [
+    BoxShadow(
+      color: AppColors.primary.withOpacity(0.08),
+      blurRadius: 20,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  static List<BoxShadow> get mediumShadow => [
+    BoxShadow(
+      color: AppColors.primary.withOpacity(0.12),
+      blurRadius: 25,
+      offset: const Offset(0, 8),
+    ),
+  ];
+
+  static List<BoxShadow> get strongShadow => [
+    BoxShadow(
+      color: AppColors.primary.withOpacity(0.2),
+      blurRadius: 30,
+      offset: const Offset(0, 12),
+    ),
+  ];
+
+  // ═══════════════════════════════════════
+  // تم روشن (Light Theme)
+  // ═══════════════════════════════════════
   static ThemeData get lightTheme {
-    final base = ThemeData.light();
+    final base = ThemeData.light(useMaterial3: true);
+    final textTheme = GoogleFonts.vazirmatnTextTheme(base.textTheme);
+
     return base.copyWith(
-      colorScheme: const ColorScheme.light(
-        primary: primary,
-        secondary: secondary,
-        surface: surface,
-        error: Colors.redAccent,
-        onPrimary: Colors.white,
-        onSurface: textMain,
+      // رنگ‌بندی اصلی Material 3
+      colorScheme: ColorScheme.light(
+        primary: AppColors.primary,
+        onPrimary: AppColors.textOnPrimary,
+        primaryContainer: AppColors.primaryLight,
+        onPrimaryContainer: AppColors.primaryDark,
+        secondary: AppColors.secondary,
+        onSecondary: AppColors.textOnPrimary,
+        secondaryContainer: AppColors.secondaryLight,
+        onSecondaryContainer: AppColors.secondaryDark,
+        tertiary: AppColors.accent1,
+        surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        error: AppColors.error,
+        onError: AppColors.textOnPrimary,
+        outline: AppColors.textHint,
         brightness: Brightness.light,
       ),
-      
-      // اسکرول بار سفارشی (نه آن آبی تند پیش فرض)
-      scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(primary.withOpacity(0.5)),
-        radius: Radius.circular(10),
-        thickness: WidgetStateProperty.all(6),
-      ),
 
-      // صفحه کلید راست به چپ و رنگ‌بندی شده
+      scaffoldBackgroundColor: AppColors.background,
+
+      // AppBar
       appBarTheme: AppBarTheme(
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 1,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.textPrimary,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        iconTheme: IconThemeData(color: textMain),
         centerTitle: true,
         titleTextStyle: TextStyle(
-          color: textMain, 
-          fontSize: 20, 
-          fontWeight: FontWeight.bold,
           fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+        iconTheme: const IconThemeData(
+          color: AppColors.textPrimary,
+          size: 24,
         ),
       ),
 
-      // تنظیمات کارت‌ها و لیست‌ها
+      // کارت‌ها
       cardTheme: CardTheme(
-        elevation: 4,
-        shadowColor: primary.withOpacity(0.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        color: surface,
+        elevation: 0,
+        color: AppColors.surface,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
         margin: EdgeInsets.zero,
       ),
 
-      // --- تایپوگرافی ---
-      textTheme: GoogleFonts.vazirmatnTextTheme(base.textTheme).copyWith(
-        displayLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: textMain, height: 1.2),
-        headlineMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textMain),
-        bodyLarge: TextStyle(fontSize: 16, color: textSub, height: 1.5),
-        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+      // تایپوگرافی
+      textTheme: textTheme.copyWith(
+        displayLarge: textTheme.displayLarge?.copyWith(
+          fontSize: 36,
+          fontWeight: FontWeight.w900,
+          color: AppColors.textPrimary,
+          height: 1.3,
+        ),
+        displayMedium: textTheme.displayMedium?.copyWith(
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+          height: 1.3,
+        ),
+        headlineLarge: textTheme.headlineLarge?.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+        headlineMedium: textTheme.headlineMedium?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+        headlineSmall: textTheme.headlineSmall?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        bodyLarge: textTheme.bodyLarge?.copyWith(
+          fontSize: 16,
+          color: AppColors.textSecondary,
+          height: 1.6,
+        ),
+        bodyMedium: textTheme.bodyMedium?.copyWith(
+          fontSize: 14,
+          color: AppColors.textSecondary,
+          height: 1.5,
+        ),
+        labelLarge: textTheme.labelLarge?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+          letterSpacing: 0.5,
+        ),
       ),
 
-      // دکمه‌های گرد و بزرگ (Candy Style Buttons)
+      // دکمه‌های برجسته (Elevated)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: primaryDark,
-          minimumSize: Size(double.infinity, 56), // ارتفاع استاندارد لمس
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 5,
-          textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          foregroundColor: AppColors.textOnPrimary,
+          backgroundColor: AppColors.primary,
+          minimumSize: const Size(double.infinity, 56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+          ),
+          elevation: elevationMedium,
+          shadowColor: AppColors.primary.withOpacity(0.3),
+          textStyle: TextStyle(
+            fontFamily: GoogleFonts.vazirmatn().fontFamily,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
 
+      // دکمه‌های شناور (FAB)
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.textOnPrimary,
+        elevation: elevationHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLarge),
+        ),
+      ),
+
+      // نوار پیمایش پایین
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textHint,
+        elevation: elevationHigh,
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: TextStyle(
+          fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          fontSize: 11,
+        ),
+      ),
+
+      // چیپ‌ها
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.primarySoft,
+        selectedColor: AppColors.primary,
+        labelStyle: TextStyle(
+          fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusCircular),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+
+      // فیلد ورودی
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(radiusMedium),
           borderSide: BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: primary, width: 2),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+          borderSide: BorderSide(color: AppColors.textHint.withOpacity(0.3)),
         ),
-        prefixIconColor: textSub,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        hintStyle: TextStyle(
+          fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          color: AppColors.textHint,
+          fontSize: 14,
+        ),
+        prefixIconColor: AppColors.textHint,
+      ),
+
+      // Slider
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.primary,
+        inactiveTrackColor: AppColors.primary.withOpacity(0.2),
+        thumbColor: AppColors.primary,
+        overlayColor: AppColors.primary.withOpacity(0.1),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+      ),
+
+      // Dialog
+      dialogTheme: DialogTheme(
+        backgroundColor: AppColors.surface,
+        elevation: elevationHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusXLarge),
+        ),
+      ),
+
+      // SnackBar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.textPrimary,
+        contentTextStyle: TextStyle(
+          fontFamily: GoogleFonts.vazirmatn().fontFamily,
+          color: AppColors.textOnDark,
+          fontSize: 14,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+
+      // Divider
+      dividerTheme: DividerThemeData(
+        color: AppColors.textHint.withOpacity(0.2),
+        thickness: 1,
+        space: 0,
+      ),
+
+      // Scrollbar
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(AppColors.primary.withOpacity(0.4)),
+        radius: const Radius.circular(10),
+        thickness: WidgetStateProperty.all(5),
       ),
     );
   }
