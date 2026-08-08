@@ -1,6 +1,7 @@
+// lib/presentation/widgets/shimmer_loader.dart
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class ShimmerCard extends StatelessWidget {
   @override
