@@ -9,7 +9,31 @@ void main() {
   
   // قفل کردن صفحه در حالت عمودی (جهت حفظ چیدمان UI)
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+// lib/main.dart
+// داخل تابع main یا قبل از runApp:
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // -- تنظیمات ویژه انتقال --
+  await Future.delayed(Duration(milliseconds: 100)); // کوچنترین وقفه برای اعمال سیتم کروم
+  
+  runApp(const MyApp());
+}
 
+// داخل State<MyApp> در متد initState:
+@override
+void initState() {
+  super.initState();
+  // بعد از فریم اول، صفحه را کاملاً fullScreen کن
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+     FullScreenUtils.enableFullScreen();
+  });
+  
+  // گوش دادن به تغییرات Lifecycle اپ (مثلاً اگر کاربر از اپ خارج شد و دوباره برگشت)
+  WidgetsBindingObserver? observer;
+  // نکته: پیاده‌سازی کامل Lifecycle نیاز به AppLifecycleState دارد، 
+  // اما برای سادگی همین متد enableFullScreen کافیست.
+}
   runApp(const ProviderScope(child: MyApp())); 
 }
 // اگر Riverpod را در main.dart ایمپورت کرده‌اید ProviderScope لازم است، 
