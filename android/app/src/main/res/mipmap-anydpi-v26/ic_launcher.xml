@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon>
+    <!-- لایه پس‌زمینه: معمولاً رنگ سفید یا رنگ برند شما -->
+    <background android:drawable="@color/ic_launcher_background"/>
+    <!-- لایه جلو: لوگوی شما (باید vectors باشد) -->
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
