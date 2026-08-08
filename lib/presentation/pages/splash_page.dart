@@ -1,32 +1,39 @@
+// lib/presentation/pages/splash_page.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import 'home_page.dart';
+import 'home_page.dart'; // بعداً می‌سازیم
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
+
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
 class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
-  late AnimationController animCtrl;
-  late Animation<double> scaleAnim;
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    animCtrl = AnimationController(vsync: this, duration: Duration(milliseconds: 1200));
-    scaleAnim = CurvedAnimation(parent: animCtrl, curve: Curves.elasticOut);
-    animCtrl.forward();
+    
+    _controller = AnimationController(vsync: this, duration: Duration(milliseconds: 1200));
+    _scaleAnimation = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
+    _controller.forward();
 
-    Timer(Duration(seconds: 3), () {
+    // رفتن به صفحه اصلی بعد از ۳ ثانیه
+    Timer(const Duration(seconds: 3), () {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()));
     });
   }
 
   @override
-  void dispose() { animCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,19 +41,26 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       backgroundColor: AppTheme.background,
       body: Center(
         child: AnimatedBuilder(
-          animation: scaleAnim,
-          builder: (c, ch) => Transform.scale(scale: scaleAnim.value, child: ch),
+          animation: _scaleAnimation,
+          builder: (context, child) => Transform.scale(scale: _scaleAnimation.value, child: child),
           child: Container(
             padding: EdgeInsets.all(30),
-            decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 30)]),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.play_circle_fill_rounded, size: 80, color: AppTheme.primaryDark),
-              SizedBox(height: 10),
-              Text("کارتونیا", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, color: AppTheme.textMain))
-            ])
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 30, spreadRadius: 5)]
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.play_circle_fill_rounded, size: 80, color: AppTheme.primaryDark),
+                SizedBox(height: 10),
+                Text("کارتونیا", style: Theme.of(context).textTheme.displayLarge!.copyWith(color: AppTheme.primaryDark))
+              ],
+            ),
           ),
-        )
-      )
+        ),
+      ),
     );
   }
 }
