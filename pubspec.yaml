@@ -1,9 +1,23 @@
-name: cartoon_ya
-description: "A new Flutter project."
-publish_to: 'none'
-version: 1.0.0+1
-
-environment:
-  sdk: '>=3.0.0 <4.0.0'
-
 dependencies:
+  flutter:
+    sdk: flutter
+  # مدیریت حالت و دیپلاینسی
+  flutter_riverpod: ^2.4.9
+  # ناوبری پیشرفته با انیمیشن‌ها
+  go_router: ^13.0.0
+  # فونت فارسی (وزیرمتن)
+  google_fonts: ^6.1.0
+  # تصاویر بهینه و کشینگ قدرتمند
+  cached_network_image: ^3.3.1
+  # انیمیشن‌های لوتِی (برای لودینگ یا اسپلش)
+  lottie: ^2.7.0
+  # آیکون‌های مدرن
+  cupertino_icons: ^1.0.6
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
