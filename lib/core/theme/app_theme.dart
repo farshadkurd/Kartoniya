@@ -1,25 +1,29 @@
+// lib/core/theme/app_theme.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   AppTheme._();
 
-  // پالت رنگی اختصاصی کودکان
-  static const Color primaryLight = Color(0xFFffecd2);
-  static const Color primary = Color(0xFFffc078);
-  static const Color primaryDark = Color(0xFFf09819);
-  static const Color secondary = Color(0xFF4facfe);
-  static const Color background = Color(0xFFFDF6E3); // رنگ چشم‌نواز
+  // --- رنگ‌های اصلی برند (Brand Colors) ---
+  static const Color primaryLight = Color(0xFFffecd2); // پس‌زمینه ملایم
+  static const Color primary = Color(0xFFffc078);      // نارنجی پاستلی
+  static const Color primaryDark = Color(0xFFf09819);  // پررنگ برای دکمه‌ها
+  static const Color secondary = Color(0xFF4facfe);    // آبی شفاف
+  static const Color secondaryDark = Color(0xFF00f2fe);
+  
+  // --- رنگ‌های خنثی (Neutral) ---
+  static const Color background = Color(0xFFfff9f0);    // کرم بسیار کم‌رنگ چشم را خسته نمی‌کند
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textMain = Color(0xFF2d3436);
   static const Color textSub = Color(0xFF636e72);
   
-  // رنگ‌های ویژه صفحه درباره ما
+  // --- رنگ‌های ویژه (Special) ---
   static const Color goldGlow = Color(0xFFFFD700);
-  static const Color amberAccent = Color(0xFFFFAB00);
+  static const Color success = Color(0xFF00b894);
 
-  // تعریف تم روشن
+  // --- تم روشن (Light Theme) ---
   static ThemeData get lightTheme {
     final base = ThemeData.light();
     return base.copyWith(
@@ -27,24 +31,25 @@ class AppTheme {
         primary: primary,
         secondary: secondary,
         surface: surface,
+        error: Colors.redAccent,
         onPrimary: Colors.white,
         onSurface: textMain,
+        brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: background,
       
-      // تنظیمات اسکرول بار
+      // اسکرول بار سفارشی (نه آن آبی تند پیش فرض)
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(primary.withOpacity(0.5)),
-        radius: const Radius.circular(10),
+        radius: Radius.circular(10),
         thickness: WidgetStateProperty.all(6),
       ),
-      
-      // تنظیمات نوار بالای صفحه
+
+      // صفحه کلید راست به چپ و رنگ‌بندی شده
       appBarTheme: AppBarTheme(
         elevation: 0,
         backgroundColor: Colors.transparent,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        iconTheme: const IconThemeData(color: textMain),
+        iconTheme: IconThemeData(color: textMain),
         centerTitle: true,
         titleTextStyle: TextStyle(
           color: textMain, 
@@ -53,42 +58,48 @@ class AppTheme {
           fontFamily: GoogleFonts.vazirmatn().fontFamily,
         ),
       ),
-      
-      // شکل کارت‌ها
+
+      // تنظیمات کارت‌ها و لیست‌ها
       cardTheme: CardTheme(
         elevation: 4,
         shadowColor: primary.withOpacity(0.2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         color: surface,
+        margin: EdgeInsets.zero,
       ),
 
-      // فونت وزیرمتن برای تمام متن‌ها
+      // --- تایپوگرافی ---
       textTheme: GoogleFonts.vazirmatnTextTheme(base.textTheme).copyWith(
-        displayLarge: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: textMain, height: 1.2),
-        headlineMedium: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textMain),
-        bodyLarge: const TextStyle(fontSize: 16, color: textSub, height: 1.5),
-        labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        displayLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: textMain, height: 1.2),
+        headlineMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textMain),
+        bodyLarge: TextStyle(fontSize: 16, color: textSub, height: 1.5),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
       ),
 
-      // استایل دکمه‌ها
+      // دکمه‌های گرد و بزرگ (Candy Style Buttons)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
           backgroundColor: primaryDark,
-          minimumSize: const Size(double.infinity, 56),
+          minimumSize: Size(double.infinity, 56), // ارتفاع استاندارد لمس
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 5,
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      
-      // استایل ورودی متن
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: primary, width: 2)),
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: primary, width: 2),
+        ),
         prefixIconColor: textSub,
       ),
     );
