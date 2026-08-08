@@ -2,26 +2,55 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
+/// 🔧 ابزارهای تمام‌صفحه و مدیریت System UI
 class FullScreenUtils {
-  // فعال کردن حالت تمام صفحه (مخفی کردن نوار بالا و پایین)
+  FullScreenUtils._();
+
+  /// فعال کردن حالت تمام‌صفحه (Immersive Sticky)
+  /// مناسب برای صفحه پخش ویدیو
   static void enableFullScreen() {
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
-      overlays: [], // یعنی هیچ چیزی نمایش داده نشود (نه ساعت، نه دکمه‌ها)
+      overlays: [],
     );
-    
-    // اگر بخواهید جهت افقی هم قفل کنید (برای فیلم‌ها خوب است):
-    // SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
-    // برای عمودی ماندن (که ما انتخاب کردیم):
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
   }
 
-  // برگرداندن سیستم به حالت طبیعی (فقط برای صفحات خاص مثل تنظیمات)
+  /// غیرفعال کردن حالت تمام‌صفحه
+  /// بازگرداندن نوار وضعیت و ناوبری
   static void disableFullScreen() {
     SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.edgeToEdge, 
-      overlays: SystemUiOverlay.values, // نمایش دوباره همه چیز
+      SystemUiMode.edgeToEdge,
+      overlays: SystemUiOverlay.values,
     );
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+  }
+
+  /// تنظیم نوار وضعیت شفاف با آیکون‌های تیره
+  static void setLightStatusBar() {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  /// تنظیم نوار وضعیت شفاف با آیکون‌های روشن
+  static void setDarkStatusBar() {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
   }
 }

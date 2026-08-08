@@ -1,7 +1,15 @@
+name: kartoniya
+description: کارتونیا - دنیای شاد کودکان | تماشای انیمیشن و کارتون
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
 dependencies:
   flutter:
     sdk: flutter
-  # مدیریت حالت و دیپلاینسی
+  # مدیریت حالت پیشرفته
   flutter_riverpod: ^2.4.9
   # ناوبری پیشرفته با انیمیشن‌ها
   go_router: ^13.0.0
@@ -9,11 +17,23 @@ dependencies:
   google_fonts: ^6.1.0
   # تصاویر بهینه و کشینگ قدرتمند
   cached_network_image: ^3.3.1
-  # انیمیشن‌های لوتِی (برای لودینگ یا اسپلش)
+  # انیمیشن‌های لوتِی
   lottie: ^2.7.0
   # آیکون‌های مدرن
   cupertino_icons: ^1.0.6
-  
+  # افکت شیمر (لودینگ)
+  shimmer: ^3.0.0
+  # لینک‌های خارجی (تلگرام و...)
+  url_launcher: ^6.2.2
+  # جلوگیری از خاموش شدن صفحه هنگام پخش
+  wakelock_plus: ^1.2.1
+  # ذخلاقه‌سازی محلی (علاقه‌مندی‌ها)
+  shared_preferences: ^2.2.2
+  # افکت‌های صوتی
+  audioplayers: ^6.0.0
+  # آیکون‌های زیبا
+  font_awesome_flutter: ^10.6.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
