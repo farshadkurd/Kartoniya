@@ -1,520 +1,185 @@
-// lib/presentation/pages/cartoon_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cartoon_model.dart';
 import '../../data/providers/cartoons_provider.dart';
-import '../global_widgets/parental_gate_widget.dart';
+import '../widgets/cartoon_artwork.dart';
 import 'player_page.dart';
 
-/// 📺 صفحه جزئیات کارتون
-class CartoonDetailPage extends ConsumerStatefulWidget {
-  final CartoonModel cartoon;
-
+class CartoonDetailPage extends ConsumerWidget {
   const CartoonDetailPage({super.key, required this.cartoon});
 
-  @override
-  ConsumerState<CartoonDetailPage> createState() => _CartoonDetailPageState();
-}
-
-class _CartoonDetailPageState extends ConsumerState<CartoonDetailPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _playButtonController;
-  late Animation<double> _playButtonScale;
+  final CartoonModel cartoon;
 
   @override
-  void initState() {
-    super.initState();
-    _playButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFavorite = ref.watch(favoritesProvider).contains(cartoon.id);
+    final progress = ref.watch(watchHistoryProvider);
+    final categoryColor = AppColors.categoryColor(cartoon.category);
 
-    _playButtonScale = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(
-        parent: _playButtonController,
-        curve: Curves.easeInOut,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _playButtonController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final favorites = ref.watch(favoritesProvider);
-    final isFav = favorites.contains(widget.cartoon.id);
-    final categoryColor =
-        AppColors.getCategoryColor(widget.cartoon.category);
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // هدر تصویری بزرگ
-            SliverAppBar(
-              expandedHeight: 300,
-              pinned: true,
-              stretch: true,
-              backgroundColor: AppColors.background,
-              leading: GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                      ),
-                    ],
+    return Scaffold(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 286,
+            pinned: true,
+            backgroundColor: context.pageBackground,
+            leading: IconButton.filledTonal(
+              tooltip: 'بازگشت',
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.arrow_forward_rounded),
+            ),
+            actions: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8),
+                child: IconButton.filledTonal(
+                  tooltip:
+                      isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها',
+                  style: IconButton.styleFrom(
+                    backgroundColor: isFavorite
+                        ? AppColors.red.withOpacity(.94)
+                        : context.surfaceColor.withOpacity(.90),
+                    foregroundColor: isFavorite ? Colors.white : AppColors.red,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.textPrimary,
-                    size: 20,
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    ref.read(favoritesProvider.notifier).toggle(cartoon.id);
+                  },
+                  icon: Icon(
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                   ),
                 ),
               ),
-              actions: [
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    ref
-                        .read(favoritesProvider.notifier)
-                        .toggle(widget.cartoon.id);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.all(8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CartoonArtwork(
+                    cartoon: cartoon,
+                    borderRadius: 0,
+                    showPlayAffordance: false,
+                  ),
+                  DecoratedBox(
                     decoration: BoxDecoration(
-                      color: isFav
-                          ? AppColors.accent5.withOpacity(0.9)
-                          : Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      isFav
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: isFav ? Colors.white : AppColors.textHint,
-                      size: 22,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(.12),
+                          Colors.transparent,
+                          context.pageBackground,
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
                     ),
                   ),
-                ),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // تصویر
-                    CachedNetworkImage(
-                      imageUrl: widget.cartoon.thumbnailUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (c, u) => Container(
-                        color: AppColors.primarySoft,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      errorWidget: (c, u, e) => Container(
-                        color: AppColors.primarySoft,
-                        child: const Icon(
-                          Icons.movie_rounded,
-                          size: 60,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-
-                    // گرادیان پایین
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 120,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              AppColors.background,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // بج جدید
-                    if (widget.cartoon.isNew)
-                      Positioned(
-                        top: MediaQuery.of(context).padding.top + 60,
-                        right: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.warmGradient,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusCircular,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.accent1.withOpacity(0.4),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            '✨ جدید',
-                            style: TextStyle(
-                              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
-
-            // محتوای متنی و دکمه‌ها
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // عنوان
-                    Text(
-                      widget.cartoon.title,
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+          ),
+          SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 34),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(cartoon.title, style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoPill(
+                            icon: Icons.star_rounded,
+                            color: AppColors.yellow,
+                            text: cartoon.rating.toStringAsFixed(1),
+                          ),
+                          _InfoPill(
+                            icon: Icons.schedule_rounded,
+                            color: context.secondaryTextColor,
+                            text: cartoon.durationLabel,
+                          ),
+                          _InfoPill(
+                            icon: Icons.child_care_rounded,
+                            color: AppColors.secondary,
+                            text: 'سن ${cartoon.ageRange}',
+                          ),
+                          _InfoPill(
+                            icon: Icons.movie_outlined,
+                            color: categoryColor,
+                            text: '${cartoon.episodeCount} قسمت',
+                          ),
+                        ],
                       ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // اطلاعات سریع
-                    Row(
-                      children: [
-                        _buildInfoChip(
-                          Icons.star_rounded,
-                          AppColors.starYellow,
-                          widget.cartoon.rating.toStringAsFixed(1),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildInfoChip(
-                          Icons.access_time_rounded,
-                          AppColors.textSecondary,
-                          '${widget.cartoon.duration} دقیقه',
-                        ),
-                        const SizedBox(width: 8),
-                        _buildInfoChip(
-                          Icons.movie_rounded,
-                          categoryColor,
-                          '${widget.cartoon.episodeCount} قسمت',
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // دسته‌بندی و سن
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: categoryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusCircular,
-                            ),
-                            border: Border.all(
-                              color: categoryColor.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            widget.cartoon.category,
-                            style: TextStyle(
-                              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                              color: categoryColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondarySoft,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusCircular,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.child_care_rounded,
-                                size: 14,
-                                color: AppColors.secondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'سن ${widget.cartoon.ageRange}',
-                                style: TextStyle(
-                                  fontFamily:
-                                      GoogleFonts.vazirmatn().fontFamily,
-                                  color: AppColors.secondaryDark,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // توضیحات
-                    if (widget.cartoon.description.isNotEmpty)
+                      const SizedBox(height: 18),
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusLarge,
-                          ),
-                          boxShadow: AppTheme.softShadow,
+                          color: context.surfaceColor,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                          boxShadow: AppTheme.softShadow(context),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text('دربارهٔ این کارتون', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 7),
                             Text(
-                              '📖 درباره این کارتون',
-                              style: TextStyle(
-                                fontFamily:
-                                    GoogleFonts.vazirmatn().fontFamily,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              widget.cartoon.description,
-                              style: TextStyle(
-                                fontFamily:
-                                    GoogleFonts.vazirmatn().fontFamily,
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                                height: 1.7,
-                              ),
+                              cartoon.description,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: context.secondaryTextColor,
+                                  ),
                             ),
                           ],
                         ),
                       ),
-
-                    const SizedBox(height: 24),
-
-                    // دکمه پخش اصلی
-                    AnimatedBuilder(
-                      animation: _playButtonScale,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _playButtonScale.value,
-                          child: child,
-                        );
-                      },
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          _playCartoon();
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [categoryColor, categoryColor.withOpacity(0.8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusLarge,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: categoryColor.withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.play_circle_fill_rounded,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'شروع تماشا',
-                                style: TextStyle(
-                                  fontFamily:
-                                      GoogleFonts.vazirmatn().fontFamily,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 58),
+                          backgroundColor: categoryColor,
+                        ),
+                        onPressed: () => _play(context, cartoon.firstEpisode),
+                        icon: const Icon(Icons.play_circle_fill_rounded, size: 27),
+                        label: const Text('شروع تماشا'),
+                      ),
+                      const SizedBox(height: 28),
+                      Text('قسمت‌ها', style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 10),
+                      ...cartoon.episodes.map(
+                        (episode) => _EpisodeTile(
+                          episode: episode,
+                          color: categoryColor,
+                          progress: progress[episode.id] ?? 0.0,
+                          onTap: () => _play(context, episode),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // لیست قسمت‌ها
-                    Text(
-                      '🎬 قسمت‌ها',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    ...List.generate(
-                      widget.cartoon.episodeCount,
-                      (index) => _buildEpisodeTile(index, categoryColor),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // تگ‌ها
-                    if (widget.cartoon.tags.isNotEmpty) ...[
-                      Text(
-                        '🏷️ برچسب‌ها',
-                        style: TextStyle(
-                          fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                      if (cartoon.tags.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text('برچسب‌ها', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: cartoon.tags
+                              .map((tag) => Chip(label: Text('#$tag')))
+                              .toList(growable: false),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: widget.cartoon.tags
-                            .map(
-                              (tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primarySoft,
-                                  borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusCircular,
-                                  ),
-                                ),
-                                child: Text(
-                                  '#$tag',
-                                  style: TextStyle(
-                                    fontFamily:
-                                        GoogleFonts.vazirmatn().fontFamily,
-                                    fontSize: 12,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// چیپ اطلاعات
-  Widget _buildInfoChip(IconData icon, Color color, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -522,105 +187,135 @@ class _CartoonDetailPageState extends ConsumerState<CartoonDetailPage>
     );
   }
 
-  /// آیتم قسمت
-  Widget _buildEpisodeTile(int index, Color color) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        _playCartoon();
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          boxShadow: AppTheme.softShadow,
-        ),
-        child: Row(
-          children: [
-            // شماره قسمت
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // اطلاعات
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'قسمت ${index + 1}',
-                    style: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${widget.cartoon.duration} دقیقه',
-                    style: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // آیکون پخش
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.play_arrow_rounded,
-                color: color,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
+  void _play(BuildContext context, EpisodeModel episode) {
+    HapticFeedback.mediumImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(cartoon: cartoon, episode: episode),
       ),
     );
   }
+}
 
-  /// پخش کارتون
-  void _playCartoon() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            PlayerPage(cartoon: widget.cartoon),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.icon, required this.color, required this.text});
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusCircular),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: color,
+                  fontSize: 12,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EpisodeTile extends StatelessWidget {
+  const _EpisodeTile({
+    required this.episode,
+    required this.color,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final EpisodeModel episode;
+  final Color color;
+  final double progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasProgress = progress > .01;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(.14),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                  ),
+                  child: Icon(
+                    hasProgress ? Icons.play_arrow_rounded : Icons.movie_rounded,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              episode.title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          if (episode.isNew)
+                            Text(
+                              'جدید',
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: color,
+                                    fontSize: 11,
+                                  ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        episode.durationLabel,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: context.secondaryTextColor,
+                            ),
+                      ),
+                      if (hasProgress) ...[
+                        const SizedBox(height: 7),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 4,
+                          color: color,
+                          backgroundColor: color.withOpacity(.15),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_back_ios_new_rounded, color: context.secondaryTextColor, size: 17),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

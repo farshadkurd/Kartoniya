@@ -1,4 +1,4 @@
-package com.example.kartoniya
+package ir.parsaapps.kartoniya
 
 import io.flutter.embedding.android.FlutterActivity
 

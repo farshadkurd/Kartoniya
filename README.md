@@ -1,100 +1,114 @@
-# 🎬 کارتونیا (Kartoniya)
+# 🎬 کارتونیا — فضای امن و شاد کودکان
 
-اپلیکیشن تماشای انیمیشن و کارتون مخصوص کودکان، طراحی شده با ❤️ و فلاتر.
+**کارتونیا** یک اپلیکیشن Flutter فارسی و RTL برای پیدا کردن و تماشای محتوای کودک است. تجربهٔ برنامه برای کودک ساده و رنگی طراحی شده و بخش تنظیمات والدین با یک مسئلهٔ ریاضی تصادفی محافظت می‌شود.
 
-## ✨ ویژگی‌ها
+> وضعیت فعلی: نسخهٔ ۱.۱.۰ یک کاتالوگ محلی، پخش‌کنندهٔ واقعی ویدئو، تنظیمات پایدار روی دستگاه و مسیر آماده برای اتصال به API/CMS دارد. محتوای نمایشی باید پیش از انتشار با ویدئوهای دارای مجوز جایگزین شود.
 
-- 🎨 **رابط کاربری مدرن و کودکانه** — Material 3، گرادیان‌های ظریف، سایه‌های نرم
-- 🔒 **سیستم امنیت والدین** — Parental Gate با مسائل ریاضی تصادفی
-- ⚡ **مدیریت State پیشرفته** — Riverpod
-- 🌟 **انیمیشن‌های نرم** — ترنزیشن‌ها، micro-interactions، افکت طلایی
-- 🔍 **جستجو و دسته‌بندی** — فیلتر بر اساس دسته‌بندی و جستجوی متنی
-- ❤️ **علاقه‌مندی‌ها** — ذخیره کارتون‌های مورد علاقه
-- 📺 **پخش‌کننده ویدیو** — کنترل‌های زیبا با انیمیشن
-- 🏗️ **معماری تمیز** — Clean Architecture با Riverpod
+## قابلیت‌ها
 
-## 📱 صفحات
+- رابط **Material 3**، فارسی و کاملاً RTL با حالت روشن/تاریک
+- Splash سبک و Onboarding سه‌مرحله‌ای
+- خانه، دسته‌بندی، جست‌وجوی فارسی، علاقه‌مندی‌ها و فضای والدین
+- ذخیرهٔ محلی علاقه‌مندی‌ها، نام نمایشی، تم، پخش خودکار و موقعیت ادامهٔ تماشا
+- پخش‌کنندهٔ واقعی با `video_player`، کنترل پخش/توقف، جابه‌جایی ۱۰ ثانیه‌ای و ادامهٔ تماشا
+- قفل والدین با مسئلهٔ تصادفی؛ بدون PIN ثابت
+- حالت‌های Loading، Empty و Error برای جریان‌های اصلی
+- طراحی واکنش‌گرا با گرید تطبیقی برای موبایل و تبلت
+- صفحهٔ «درباره ما» اختصاصی Parsa Apps با هالهٔ طلایی متحرک و لینک تلگرام
 
-| صفحه | توضیح |
-|------|-------|
-| 🌟 اسپلش | انیمیشن ورودی با ذرات شناور |
-| 🏠 خانه | بنر خوش‌آمدگویی، ویژه‌ها، جدیدها، گرید کارتون‌ها |
-| 🏷️ دسته‌بندی | فیلتر بر اساس دسته‌بندی |
-| ❤️ علاقه‌مندی | لیست کارتون‌های ذخیره‌شده |
-| 🔍 جستجو | جستجو با پیشنهادات |
-| 📺 جزئیات | اطلاعات کامل کارتون و لیست قسمت‌ها |
-| ▶️ پخش | پخش‌کننده ویدیو با کنترل‌ها |
-| ℹ️ درباره ما | اطلاعات سازنده با افکت طلایی |
-
-## 🛠️ تکنولوژی‌ها
-
-- **Flutter** 3.x
-- **Riverpod** — مدیریت حالت
-- **GoRouter** — ناوبری
-- **Google Fonts** — فونت وزیرمتن
-- **CachedNetworkImage** — کشینگ تصاویر
-- **Shimmer** — انیمیشن لودینگ
-- **Lottie** — انیمیشن‌های وکتوری
-
-## 🚀 اجرای پروژه
-
-```bash
-# نصب وابستگی‌ها
-flutter pub get
-
-# اجرا در حالت دیباگ
-flutter run
-
-# ساخت APK
-flutter build apk --release
-```
-
-## 📂 ساختار پروژه
+## معماری
 
 ```
 lib/
-├── main.dart
 ├── core/
-│   ├── theme/
-│   │   ├── app_colors.dart      # سیستم رنگ‌بندی
-│   │   └── app_theme.dart       # تم اصلی
-│   └── utils/
-│       └── full_screen_utils.dart
+│   ├── services/          # SharedPreferences wrapper
+│   ├── theme/             # Design tokens و تم روشن/تاریک
+│   └── utils/             # RTL، متن فارسی و System UI
 ├── data/
-│   ├── models/
-│   │   └── cartoon_model.dart   # مدل داده
-│   └── providers/
-│       └── cartoons_provider.dart # Riverpod providers
+│   ├── models/            # CartoonModel و EpisodeModel
+│   ├── providers/         # Riverpod state و composition root
+│   └── repositories/      # LocalCartoonRepository
+├── domain/
+│   └── repositories/      # قرارداد CartoonRepository
 └── presentation/
-    ├── pages/
-    │   ├── splash_page.dart
-    │   ├── home_page.dart
-    │   ├── categories_page.dart
-    │   ├── favorites_page.dart
-    │   ├── search_page.dart
-    │   ├── cartoon_detail_page.dart
-    │   ├── player_page.dart
-    │   └── about_us_page.dart
-    ├── widgets/
-    │   ├── cartoon_card.dart
-    │   └── shimmer_loader.dart
-    └── global_widgets/
-        └── parental_gate_widget.dart
+    ├── global_widgets/    # Parental Gate
+    ├── pages/             # صفحات و جریان‌های کاربر
+    └── widgets/           # کارت، artwork برداری و skeleton
 ```
 
-## 🎨 طراحی
+UI فقط providerها را می‌خواند؛ provider کاتالوگ را از قرارداد `CartoonRepository` می‌گیرد. برای اتصال backend، یک repository جدید پیاده‌سازی و در `cartoonRepositoryProvider` جایگزین کنید؛ صفحه‌ها تغییر نمی‌کنند.
 
-- **رنگ‌های اصلی:** نارنجی گرم (#FF8A50) + آبی آسمانی (#5AC8FA)
-- **فونت:** وزیرمتن (Vazirmatn) — مناسب فارسی
-- **سبک:** مدرن، نرم، کودکانه با گرادیان‌های ظریف
-- **RTL:** پشتیبانی کامل از راست‌به‌چپ
+## پیش‌نیازها
 
-## 👨‍💻 سازنده
+- Flutter **3.19 یا بالاتر**
+- Dart **3.2 یا بالاتر**
+- Android SDK با `compileSdk 34`
+- دستگاه یا شبیه‌ساز Android با حداقل API 21
 
-**فرشاد پارسا** — Parsa Apps
+## اجرا
 
-- 📱 تلگرام: [@Parsaappsadmin](https://t.me/Parsaappsadmin)
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
 
-## 📄 مجوز
+## ساخت خروجی Android
 
-این پروژه برای استفاده شخصی و آموزشی است.
+```bash
+flutter build apk --release
+flutter build appbundle --release
+```
+
+شناسهٔ فعلی برنامه `ir.parsaapps.kartoniya` است.
+
+### امضای انتشار
+
+فایل `android/key.properties` عمداً داخل Git نگه‌داری نمی‌شود. برای امضای فروشگاهی، آن را فقط روی محیط امن خودتان بسازید:
+
+```properties
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=/absolute/path/to/release.keystore
+```
+
+در نبود این فایل، Gradle یک APK release **با امضای debug فقط برای smoke test CI** می‌سازد. چنین فایلـی برای کافه‌بازار یا گوگل‌پلی قابل انتشار نیست.
+
+## محتوا و پخش ویدئو
+
+`LocalCartoonRepository` نمونهٔ محلی کاتالوگ است و برای تست فنی player از یک URL عمومی Flutter استفاده می‌کند. این URL محتوای تجاری کارتونیا نیست. پیش از انتشار:
+
+1. URLهای قسمت را با CDN HTTPS و محتوای دارای حق پخش جایگزین کنید.
+2. در صورت نیاز، repository API را با احراز هویت کوتاه‌عمر و cache امن پیاده‌سازی کنید.
+3. رده‌بندی سنی، اطلاعات صاحب اثر و سیاست گزارش محتوا را برای هر عنوان ثبت کنید.
+4. روی شبکهٔ ضعیف، قطع اینترنت و دستگاه‌های پایین‌رده تست دستی انجام دهید.
+
+## حریم خصوصی و امنیت
+
+- برنامه در نسخهٔ فعلی حساب کاربری، تبلیغ‌کننده یا analytics ندارد.
+- فقط نام نمایشی والد، انتخاب تم، علاقه‌مندی‌ها و درصد ادامهٔ تماشا در `SharedPreferences` همان دستگاه ذخیره می‌شوند.
+- مجوز Storage درخواست نمی‌شود و `requestLegacyExternalStorage` حذف شده است.
+- ارتباط ویدئویی باید صرفاً HTTPS باشد.
+- کلید امضای Android از repository حذف و در `.gitignore` محافظت شده است.
+
+## تست‌های موجود
+
+```bash
+flutter test
+```
+
+- یکسان‌سازی جست‌وجوی فارسی/عربی
+- اعتبار پایهٔ کاتالوگ محلی و URLهای HTTPS قسمت‌ها
+
+## انتشار در کافه‌بازار و گوگل‌پلی
+
+1. `applicationId`، نام، آیکون، اسکرین‌شات‌ها و سیاست حریم خصوصی را نهایی کنید.
+2. فقط محتوا و تصاویر دارای مجوز را در کاتالوگ قرار دهید.
+3. keystore انتشار را در محیط امن CI یا local تنظیم کنید.
+4. AAB امضاشده بسازید: `flutter build appbundle --release`.
+5. روی چند نسخهٔ Android و دستگاه واقعی، onboarding، قفل والدین، بازگشت از player، حالت تاریک و قطع اینترنت را تست کنید.
+6. فرم‌های رده‌بندی سنی، Data Safety و اطلاعات پشتیبانی فروشگاه را تکمیل کنید.
+
+جزئیات معماری و نقشهٔ راه صدمرحله‌ای در [`docs/ARCHITECTURE_FA.md`](docs/ARCHITECTURE_FA.md) و [`docs/ROADMAP_FA.md`](docs/ROADMAP_FA.md) آمده است.

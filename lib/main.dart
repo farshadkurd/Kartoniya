@@ -1,43 +1,59 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'core/theme/app_theme.dart';
-import 'core/utils/full_screen_utils.dart';
+import 'data/providers/cartoons_provider.dart';
 import 'presentation/pages/splash_page.dart';
 
-/// 🎬 کارتونیا - دنیای شاد کودکان
-/// اپلیکیشن تماشای انیمیشن و کارتون مخصوص کودکان
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await SharedPreferences.getInstance();
 
-  // قفل کردن صفحه در حالت عمودی
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
   ]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // تنظیم نوار وضعیت
-  FullScreenUtils.setLightStatusBar();
-
-  runApp(const ProviderScope(child: KartoniyaApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+      ],
+      child: const KartoniyaApp(),
+    ),
+  );
 }
 
-/// اپلیکیشن اصلی کارتونیا
-class KartoniyaApp extends StatelessWidget {
+/// نقطهٔ ورود اپ؛ تم، RTL و providerهای سراسری تنها در این لایه تنظیم می‌شوند.
+class KartoniyaApp extends ConsumerWidget {
   const KartoniyaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'کارتونیا - دنیای شاد کودکان',
+      title: 'کارتونیا',
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
+      locale: const Locale('fa', 'IR'),
+      supportedLocales: const [Locale('fa', 'IR'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: const SplashPage(),
-      // پشتیبانی از RTL
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
+        final brightness = Theme.of(context).brightness;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: brightness == Brightness.dark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

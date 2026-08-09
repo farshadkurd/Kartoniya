@@ -1,56 +1,33 @@
-// lib/core/utils/full_screen_utils.dart
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// 🔧 ابزارهای تمام‌صفحه و مدیریت System UI
-class FullScreenUtils {
-  FullScreenUtils._();
-
-  /// فعال کردن حالت تمام‌صفحه (Immersive Sticky)
-  /// مناسب برای صفحه پخش ویدیو
-  static void enableFullScreen() {
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.immersiveSticky,
-      overlays: [],
-    );
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
+/// تنظیم‌های System UI در یک نقطه تا صفحهٔ پخش بتواند ایمن به حالت عادی برگردد.
+abstract final class FullScreenUtils {
+  static Future<void> enablePlayerMode() async {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    await SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
     ]);
   }
 
-  /// غیرفعال کردن حالت تمام‌صفحه
-  /// بازگرداندن نوار وضعیت و ناوبری
-  static void disableFullScreen() {
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.edgeToEdge,
-      overlays: SystemUiOverlay.values,
+  static Future<void> restoreAppMode(Brightness brightness) async {
+    await SystemChrome.setPreferredOrientations(
+      const [DeviceOrientation.portraitUp],
     );
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-  }
-
-  /// تنظیم نوار وضعیت شفاف با آیکون‌های تیره
-  static void setLightStatusBar() {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      brightness == Brightness.dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
     );
   }
 
-  /// تنظیم نوار وضعیت شفاف با آیکون‌های روشن
-  static void setDarkStatusBar() {
+  static void setStatusBar(Brightness brightness) {
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
+      brightness == Brightness.dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
     );
   }
 }

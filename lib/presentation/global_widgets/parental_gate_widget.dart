@@ -1,20 +1,18 @@
-// lib/presentation/global_widgets/parental_gate_widget.dart
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 
-/// 🔒 نمایش قفل والدین
-/// استفاده: final result = await showParentalGate(context);
+/// قفل والدین مبتنی بر پرسش تصادفی؛ هیچ PIN ثابت یا دادهٔ حساسی ذخیره نمی‌شود.
 Future<bool> showParentalGate(BuildContext context) async {
-  return await showDialog(
-    context: context,
-    barrierDismissible: false,
-    barrierColor: Colors.black54,
-    builder: (ctx) => const _ParentalGateDialog(),
-  ) ??
+  return (await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _ParentalGateDialog(),
+      )) ??
       false;
 }
 
@@ -27,361 +25,178 @@ class _ParentalGateDialog extends StatefulWidget {
 
 class _ParentalGateDialogState extends State<_ParentalGateDialog>
     with SingleTickerProviderStateMixin {
-  late int num1;
-  late int num2;
-  late int correctAnswer;
-  late String operator;
-  final TextEditingController _controller = TextEditingController();
-  late AnimationController _shakeController;
-  late Animation<double> _shakeAnimation;
-  bool _isWrong = false;
-  String _errorMessage = '';
+  final _answerController = TextEditingController();
+  final _random = Random();
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
+  late int _first;
+  late int _second;
+  late int _answer;
+  late String _operator;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _shakeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 420),
     );
-    _shakeAnimation = Tween<double>(begin: 0, end: 10).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticOut),
-    );
-    _generateProblem();
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -9), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -9, end: 9), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 9, end: -6), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
+    _newChallenge();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _answerController.dispose();
     _shakeController.dispose();
     super.dispose();
   }
 
-  void _generateProblem() {
-    final random = Random();
-    final op = random.nextInt(3); // 0: +, 1: -, 2: ×
-
-    switch (op) {
+  void _newChallenge() {
+    switch (_random.nextInt(3)) {
       case 0:
-        num1 = random.nextInt(15) + 1;
-        num2 = random.nextInt(15) + 1;
-        correctAnswer = num1 + num2;
-        operator = '+';
+        _first = _random.nextInt(14) + 6;
+        _second = _random.nextInt(14) + 4;
+        _answer = _first + _second;
+        _operator = '+';
         break;
       case 1:
-        num1 = random.nextInt(20) + 5;
-        num2 = random.nextInt(num1);
-        correctAnswer = num1 - num2;
-        operator = '-';
+        _first = _random.nextInt(15) + 15;
+        _second = _random.nextInt(_first - 3) + 2;
+        _answer = _first - _second;
+        _operator = '−';
         break;
-      case 2:
-        num1 = random.nextInt(9) + 2;
-        num2 = random.nextInt(9) + 2;
-        correctAnswer = num1 * num2;
-        operator = '×';
-        break;
+      default:
+        _first = _random.nextInt(7) + 3;
+        _second = _random.nextInt(6) + 3;
+        _answer = _first * _second;
+        _operator = '×';
     }
   }
 
-  void _checkAnswer() {
-    final input = _controller.text.trim();
-    if (input.isEmpty) {
-      setState(() {
-        _isWrong = true;
-        _errorMessage = 'لطفاً پاسخ را وارد کنید';
-      });
-      _shakeController.forward().then((_) => _shakeController.reset());
-      return;
-    }
-
-    final answer = int.tryParse(input);
-    if (answer == null) {
-      setState(() {
-        _isWrong = true;
-        _errorMessage = 'لطفاً عدد وارد کنید';
-      });
-      _shakeController.forward().then((_) => _shakeController.reset());
-      return;
-    }
-
-    if (answer == correctAnswer) {
+  void _submit() {
+    final submitted = _normalizeDigits(_answerController.text.trim());
+    final parsed = int.tryParse(submitted);
+    if (parsed == _answer) {
       HapticFeedback.lightImpact();
       Navigator.of(context).pop(true);
-    } else {
-      HapticFeedback.heavyImpact();
-      setState(() {
-        _isWrong = true;
-        _errorMessage = 'پاسخ اشتباه است! دوباره تلاش کنید';
-      });
-      _shakeController.forward().then((_) {
-        _shakeController.reset();
-        if (mounted) {
-          setState(() {
-            _controller.clear();
-            _generateProblem();
-            _isWrong = false;
-          });
-        }
-      });
+      return;
     }
+
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _error = submitted.isEmpty ? 'لطفاً پاسخ را وارد کنید.' : 'پاسخ درست نیست؛ یک مسئلهٔ تازه امتحان کن.';
+      _answerController.clear();
+      _newChallenge();
+    });
+    _shakeController.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: AnimatedBuilder(
-        animation: _shakeAnimation,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(
-              _shakeAnimation.value *
-                  (0.5 - (Random().nextDouble())), // لرزش تصادفی
-              0,
-            ),
-            child: child,
-          );
-        },
-        child: Container(
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return AnimatedBuilder(
+      animation: _shakeAnimation,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(_shakeAnimation.value, 0),
+        child: child,
+      ),
+      child: AlertDialog(
+        icon: Container(
+          width: 58,
+          height: 58,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            gradient: AppColors.sunsetGradient,
+            shape: BoxShape.circle,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // آیکون قفل
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.sunsetGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 36,
-                  color: AppColors.textOnPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Text(
-                '🔒 قفل والدین',
-                style: TextStyle(
-                  fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'این بخش فقط برای بزرگسالان است.\nلطفاً مسئله ریاضی زیر را حل کنید:',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.6,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // مسئله ریاضی
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
+          child: const Icon(Icons.family_restroom_rounded, color: Colors.white),
+        ),
+        title: const Text('ورود والدین'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'برای باز کردن تنظیمات، مسئلهٔ زیر را حل کنید.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            Semantics(
+              label: 'مسئله ریاضی: $_first $_operator $_second',
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.primarySoft,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Text(
-                      '$num1',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Text(
-                      operator,
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '$num2',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Text(
-                      '=',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '?',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.accent5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // ورودی پاسخ
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  border: Border.all(
-                    color: _isWrong
-                        ? AppColors.error
-                        : AppColors.textHint.withOpacity(0.3),
-                  ),
                 ),
-                child: TextField(
-                  controller: _controller,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '؟',
-                    hintStyle: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      color: AppColors.textHint,
-                      fontSize: 28,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                  ),
-                  onSubmitted: (_) => _checkAnswer(),
-                ),
-              ),
-
-              // پیام خطا
-              if (_isWrong && _errorMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    _errorMessage,
-                    style: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      fontSize: 12,
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // دکمه تایید
-              GestureDetector(
-                onTap: _checkAnswer,
-                child: Container(
-                  width: double.infinity,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(
-                      AppTheme.radiusMedium,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      'باز کردن قفل',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textOnPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // دکمه انصراف
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.of(context).pop(false);
-                },
                 child: Text(
-                  'انصراف',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  '$_first  $_operator  $_second  =  ؟',
+                  textAlign: TextAlign.center,
+                  textDirection: TextDirection.ltr,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: AppColors.primaryDark,
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _answerController,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹]')),
+              ],
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                hintText: 'پاسخ',
+                errorText: _error,
+                prefixIcon: const Icon(Icons.calculate_outlined),
+              ),
+            ),
+          ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: _submit,
+            child: const Text('تأیید'),
+          ),
+        ],
       ),
     );
   }
+}
+
+String _normalizeDigits(String input) {
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+  const arabic = '٠١٢٣٤٥٦٧٨٩';
+  final buffer = StringBuffer();
+  for (final character in input.runes) {
+    final value = String.fromCharCode(character);
+    final persianIndex = persian.indexOf(value);
+    final arabicIndex = arabic.indexOf(value);
+    if (persianIndex >= 0) {
+      buffer.write(persianIndex);
+    } else if (arabicIndex >= 0) {
+      buffer.write(arabicIndex);
+    } else {
+      buffer.write(value);
+    }
+  }
+  return buffer.toString();
 }
