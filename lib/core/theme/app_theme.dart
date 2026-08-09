@@ -291,11 +291,11 @@ class AppTheme {
         space: 0,
       ),
 
-      // Scrollbar
+      // Scrollbar (سازگار با Flutter 3.19 و بالاتر)
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.primary.withOpacity(0.4)),
+        thumbColor: MaterialStateProperty.all(AppColors.primary.withOpacity(0.4)),
         radius: const Radius.circular(10),
-        thickness: WidgetStateProperty.all(5),
+        thickness: MaterialStateProperty.all(5),
       ),
     );
   }
