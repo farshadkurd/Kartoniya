@@ -4,25 +4,29 @@ publish_to: 'none'
 version: 1.1.0+2
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  flutter_riverpod: ^2.5.1
-  google_fonts: ^6.1.0
-  shared_preferences: ^2.2.2
-  shimmer: ^3.0.0
-  url_launcher: ^6.2.5
-  video_player: ^2.8.6
-  wakelock_plus: ^1.2.5
+  # Keep direct dependencies on versions verified with Flutter 3.19 / Dart 3.3.
+  # Without a lockfile, caret ranges can silently select plugins that require a
+  # newer Android SDK or Flutter version and break an otherwise unchanged build.
+  flutter_riverpod: 2.6.1
+  google_fonts: 6.2.0
+  shared_preferences: 2.2.3
+  shimmer: 3.0.0
+  url_launcher: 6.3.1
+  video_player: 2.8.6
+  wakelock_plus: 1.2.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: 3.0.2
 
 flutter:
   uses-material-design: true
