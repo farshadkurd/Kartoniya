@@ -1,0 +1,79 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// ذخیره‌سازی کوچک و محلی تنظیم‌ها؛ هیچ حساب کاربری، رمز یا دادهٔ حساس در این
+/// سرویس نگه‌داری نمی‌شود.
+class AppPreferences {
+  AppPreferences(this._storage);
+
+  final SharedPreferences _storage;
+
+  static const _onboardingKey = 'onboarding_completed';
+  static const _favoritesKey = 'favorite_cartoon_ids';
+  static const _themeKey = 'theme_mode';
+  static const _autoplayKey = 'autoplay_enabled';
+  static const _parentNameKey = 'parent_display_name';
+  static const _watchProgressKey = 'watch_progress';
+
+  bool get onboardingCompleted => _storage.getBool(_onboardingKey) ?? false;
+  Future<bool> completeOnboarding() => _storage.setBool(_onboardingKey, true);
+
+  Set<String> get favoriteIds =>
+      (_storage.getStringList(_favoritesKey) ?? const <String>[]).toSet();
+
+  Future<bool> saveFavoriteIds(Set<String> ids) {
+    final sorted = ids.toList()..sort();
+    return _storage.setStringList(_favoritesKey, sorted);
+  }
+
+  ThemeMode get themeMode {
+    switch (_storage.getString(_themeKey)) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  Future<bool> saveThemeMode(ThemeMode mode) =>
+      _storage.setString(_themeKey, mode.name);
+
+  bool get autoplayEnabled => _storage.getBool(_autoplayKey) ?? true;
+  Future<bool> saveAutoplayEnabled(bool value) =>
+      _storage.setBool(_autoplayKey, value);
+
+  String get parentName => _storage.getString(_parentNameKey) ?? 'والد مهربان';
+  Future<bool> saveParentName(String value) =>
+      _storage.setString(_parentNameKey, value.trim().isEmpty ? 'والد مهربان' : value.trim());
+
+  Map<String, double> get watchProgress {
+    final raw = _storage.getString(_watchProgressKey);
+    if (raw == null || raw.isEmpty) return <String, double>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return <String, double>{};
+      final result = <String, double>{};
+      decoded.forEach((key, value) {
+        final number = value is num ? value.toDouble() : 0.0;
+        result[key] = number.clamp(0.0, 1.0).toDouble();
+      });
+      return result;
+    } on FormatException {
+      return <String, double>{};
+    }
+  }
+
+  Future<bool> saveWatchProgress(Map<String, double> progress) {
+    final normalized = progress.map(
+      (key, value) => MapEntry(key, value.clamp(0.0, 1.0).toDouble()),
+    );
+    return _storage.setString(_watchProgressKey, jsonEncode(normalized));
+  }
+
+  Future<bool> clearWatchProgress() => _storage.remove(_watchProgressKey);
+  Future<bool> clearFavorites() => _storage.remove(_favoritesKey);
+}

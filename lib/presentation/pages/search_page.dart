@@ -1,8 +1,8 @@
-// lib/presentation/pages/search_page.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cartoon_model.dart';
@@ -10,7 +10,6 @@ import '../../data/providers/cartoons_provider.dart';
 import '../widgets/cartoon_card.dart';
 import 'cartoon_detail_page.dart';
 
-/// 🔍 صفحه جستجو
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
 
@@ -19,302 +18,235 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
-  final TextEditingController _searchController = TextEditingController();
-  List<CartoonModel> _results = [];
-  bool _isSearching = false;
+  final _controller = TextEditingController();
+  Timer? _debounce;
+  String _query = '';
+  bool _waitingForQuery = false;
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _debounce?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _onSearch(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _results = [];
-        _isSearching = false;
-      });
+  void _onChanged(String value) {
+    setState(() {
+      _query = value;
+      _waitingForQuery = value.trim().isNotEmpty;
+    });
+    _debounce?.cancel();
+    if (value.trim().isEmpty) {
+      ref.read(searchQueryProvider.notifier).state = '';
+      setState(() => _waitingForQuery = false);
       return;
     }
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      ref.read(searchQueryProvider.notifier).state = value;
+      setState(() => _waitingForQuery = false);
+    });
+  }
 
-    setState(() => _isSearching = true);
+  void _submitImmediately(String value) {
+    _debounce?.cancel();
+    ref.read(searchQueryProvider.notifier).state = value;
+    setState(() => _waitingForQuery = false);
+  }
 
-    final allCartoons = await ref.read(cartoonsProvider.future);
-    final filtered = allCartoons.where((c) =>
-        c.title.contains(query) ||
-        c.category.contains(query) ||
-        c.tags.any((tag) => tag.contains(query)) ||
-        c.description.contains(query)
-    ).toList();
-
-    if (mounted) {
-      setState(() {
-        _results = filtered;
-        _isSearching = false;
-      });
-    }
+  void _selectSuggestion(String value) {
+    _controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+    _onChanged(value);
   }
 
   @override
   Widget build(BuildContext context) {
+    final result = ref.watch(searchResultsProvider);
+    final showSuggestions = _query.trim().isEmpty;
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // هدر و جستجو
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.secondaryGradient,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.search_rounded,
-                        color: AppColors.textOnPrimary,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'جستجو',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // فیلد جستجو
                 Container(
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                    boxShadow: AppTheme.softShadow,
+                    gradient: AppColors.coolGradient,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _onSearch,
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      fontSize: 16,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '🔍 اسم کارتون رو بنویس...',
-                      hintStyle: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        color: AppColors.textHint,
-                        fontSize: 15,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppColors.primary,
-                        size: 24,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () {
-                                _searchController.clear();
-                                _onSearch('');
-                              },
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: AppColors.textHint,
-                                size: 20,
-                              ),
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
+                  child: const Icon(Icons.search_rounded, color: Colors.white),
                 ),
+                const SizedBox(width: 12),
+                Text('جست‌وجو', style: Theme.of(context).textTheme.headlineSmall),
               ],
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // نتایج یا پیشنهادات
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              controller: _controller,
+              autofocus: false,
+              textInputAction: TextInputAction.search,
+              onChanged: _onChanged,
+              onSubmitted: _submitImmediately,
+              decoration: InputDecoration(
+                hintText: 'نام، موضوع یا دسته را بنویس…',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'پاک کردن جست‌وجو',
+                        onPressed: () {
+                          _controller.clear();
+                          _onChanged('');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Expanded(
-            child: _searchController.text.isEmpty
-                ? _buildSuggestions()
-                : _isSearching
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+            child: showSuggestions
+                ? _SearchSuggestions(onSelected: _selectSuggestion)
+                : _waitingForQuery
+                    ? const Center(child: CircularProgressIndicator())
+                    : result.when(
+                        data: (items) => items.isEmpty
+                            ? const _NoSearchResult()
+                            : _SearchResultGrid(
+                                cartoons: items,
+                                onTap: (cartoon) => _openDetail(context, cartoon),
+                              ),
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (_, __) => Center(
+                          child: OutlinedButton.icon(
+                            onPressed: () => ref.invalidate(searchResultsProvider),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('تلاش دوباره'),
+                          ),
                         ),
-                      )
-                    : _results.isEmpty
-                        ? _buildNoResults()
-                        : _buildResults(),
+                      ),
           ),
         ],
       ),
     );
   }
 
-  /// پیشنهادات
-  Widget _buildSuggestions() {
-    final suggestions = [
-      {'emoji': '🚀', 'text': 'ماجراجویی'},
-      {'emoji': '📚', 'text': 'آموزشی'},
-      {'emoji': '🎪', 'text': 'سرگرمی'},
-      {'emoji': '🎨', 'text': 'هنری'},
-      {'emoji': '🔬', 'text': 'علمی'},
-      {'emoji': '🎵', 'text': 'موسیقی'},
-    ];
+  void _openDetail(BuildContext context, CartoonModel cartoon) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => CartoonDetailPage(cartoon: cartoon)),
+    );
+  }
+}
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+class _SearchSuggestions extends StatelessWidget {
+  const _SearchSuggestions({required this.onSelected});
+
+  final ValueChanged<String> onSelected;
+
+  static const _suggestions = [
+    ('🚀', 'ماجراجویی'),
+    ('📚', 'آموزشی'),
+    ('🎪', 'سرگرمی'),
+    ('🔬', 'علمی'),
+    ('🎨', 'هنری'),
+    ('🎵', 'موسیقی'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text('پیشنهاد برای جست‌وجو', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
           Text(
-            'پیشنهادات جستجو',
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: suggestions.map((s) {
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _searchController.text = s['text']!;
-                  _onSearch(s['text']!);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(
-                      AppTheme.radiusCircular,
-                    ),
-                    border: Border.all(
-                      color: AppColors.textHint.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(s['emoji']!, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 8),
-                      Text(
-                        s['text']!,
-                        style: TextStyle(
-                          fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+            'یک دسته را انتخاب کن یا نام کارتونی که دوست داری را بنویس.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.secondaryTextColor,
                 ),
-              );
-            }).toList(),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _suggestions
+                .map(
+                  (suggestion) => ActionChip(
+                    avatar: Text(suggestion.$1),
+                    label: Text(suggestion.$2),
+                    onPressed: () => onSelected(suggestion.$2),
+                  ),
+                )
+                .toList(growable: false),
           ),
         ],
       ),
     );
   }
+}
 
-  /// نتایج جستجو
-  Widget _buildResults() {
+class _SearchResultGrid extends StatelessWidget {
+  const _SearchResultGrid({required this.cartoons, required this.onTap});
+
+  final List<CartoonModel> cartoons;
+  final ValueChanged<CartoonModel> onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.75,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: .74,
       ),
-      itemCount: _results.length,
-      itemBuilder: (context, index) {
-        return CartoonCard(
-          cartoon: _results[index],
-          index: index,
-          onTap: () => _navigateToDetail(_results[index]),
-        );
-      },
+      itemCount: cartoons.length,
+      itemBuilder: (context, index) => CartoonCard(
+        cartoon: cartoons[index],
+        onTap: () => onTap(cartoons[index]),
+      ),
     );
   }
+}
 
-  /// نتیجه‌ای پیدا نشد
-  Widget _buildNoResults() {
+class _NoSearchResult extends StatelessWidget {
+  const _NoSearchResult();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🔍', style: TextStyle(fontSize: 50)),
-          const SizedBox(height: 16),
-          Text(
-            'نتیجه‌ای پیدا نشد',
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🔎', style: TextStyle(fontSize: 54)),
+            const SizedBox(height: 14),
+            Text('چیزی پیدا نشد', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 7),
+            Text(
+              'املای کلمه را بررسی کن یا یک دستهٔ دیگر را امتحان کن.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'یه چیز دیگه جستجو کن!',
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToDetail(CartoonModel cartoon) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CartoonDetailPage(cartoon: cartoon),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+          ],
+        ),
       ),
     );
   }

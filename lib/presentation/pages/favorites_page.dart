@@ -1,8 +1,6 @@
-// lib/presentation/pages/favorites_page.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cartoon_model.dart';
@@ -11,122 +9,86 @@ import '../widgets/cartoon_card.dart';
 import '../widgets/shimmer_loader.dart';
 import 'cartoon_detail_page.dart';
 
-/// ❤️ صفحه علاقه‌مندی‌ها
 class FavoritesPage extends ConsumerWidget {
   const FavoritesPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesProvider);
-    final cartoonsAsync = ref.watch(cartoonsProvider);
+    final cartoons = ref.watch(cartoonsProvider);
 
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // هدر
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     gradient: AppColors.warmGradient,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  child: const Icon(
-                    Icons.favorite_rounded,
-                    color: AppColors.textOnPrimary,
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.favorite_rounded, color: Colors.white),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'علاقه‌مندی‌ها',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('علاقه‌مندی‌ها', style: Theme.of(context).textTheme.headlineSmall),
+                      Text(
+                        '${favorites.length} کارتون ذخیره شده',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: context.secondaryTextColor,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
                 if (favorites.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent5.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusCircular,
-                      ),
-                    ),
-                    child: Text(
-                      '${favorites.length}',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accent5,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'پاک کردن علاقه‌مندی‌ها',
+                    onPressed: () => _confirmClear(context, ref),
+                    icon: const Icon(Icons.delete_outline_rounded),
                   ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // محتوا
           Expanded(
-            child: cartoonsAsync.when(
-              data: (cartoons) {
-                final favoriteCartoons = cartoons
-                    .where((c) => favorites.contains(c.id))
-                    .toList();
-
-                if (favoriteCartoons.isEmpty) {
-                  return _buildEmptyState();
-                }
-
+            child: cartoons.when(
+              data: (items) {
+                final selected = items
+                    .where((cartoon) => favorites.contains(cartoon.id))
+                    .toList(growable: false);
+                if (selected.isEmpty) return const _FavoritesEmptyState();
                 return GridView.builder(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.75,
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: .74,
                   ),
-                  itemCount: favoriteCartoons.length,
-                  itemBuilder: (context, index) {
-                    return CartoonCard(
-                      cartoon: favoriteCartoons[index],
-                      index: index,
-                      onTap: () => _navigateToDetail(
-                        context,
-                        favoriteCartoons[index],
-                      ),
-                    );
-                  },
+                  itemCount: selected.length,
+                  itemBuilder: (context, index) => CartoonCard(
+                    cartoon: selected[index],
+                    onTap: () => _openDetail(context, selected[index]),
+                  ),
                 );
               },
-              loading: () => GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.75,
+              loading: () => const _FavoritesLoading(),
+              error: (_, __) => Center(
+                child: OutlinedButton.icon(
+                  onPressed: () => ref.invalidate(cartoonsProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('تلاش دوباره'),
                 ),
-                itemCount: 6,
-                itemBuilder: (context, index) => const ShimmerCard(),
               ),
-              error: (e, s) => _buildEmptyState(),
             ),
           ),
         ],
@@ -134,79 +96,93 @@ class FavoritesPage extends ConsumerWidget {
     );
   }
 
-  /// حالت خالی
-  Widget _buildEmptyState() {
+  Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.delete_outline_rounded),
+        title: const Text('پاک کردن علاقه‌مندی‌ها؟'),
+        content: const Text('این فهرست فقط از همین دستگاه پاک می‌شود.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('پاک کردن'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(favoritesProvider.notifier).clear();
+    }
+  }
+
+  void _openDetail(BuildContext context, CartoonModel cartoon) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => CartoonDetailPage(cartoon: cartoon)),
+    );
+  }
+}
+
+class _FavoritesEmptyState extends StatelessWidget {
+  const _FavoritesEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // انیمیشن قلب
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.8, end: 1.0),
-            duration: const Duration(seconds: 2),
-            curve: Curves.easeInOut,
-            builder: (context, value, child) {
-              return Transform.scale(
-                scale: value,
-                child: child,
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(24),
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 106,
+              height: 106,
               decoration: BoxDecoration(
-                color: AppColors.accent5.withOpacity(0.1),
+                color: AppColors.red.withOpacity(.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.favorite_border_rounded,
-                size: 60,
-                color: AppColors.accent5,
+                size: 54,
+                color: AppColors.red,
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'هنوز علاقه‌مندی نداری!',
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+            const SizedBox(height: 20),
+            Text('هنوز چیزی اینجا نیست', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'روی قلب هر کارتون بزن تا بعداً سریع‌تر پیدایش کنی.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'روی قلب ❤️ کارتون‌ها بزن\nتا اینجا ذخیره بشن',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 14,
-              color: AppColors.textSecondary,
-              height: 1.6,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  void _navigateToDetail(BuildContext context, CartoonModel cartoon) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CartoonDetailPage(cartoon: cartoon),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+class _FavoritesLoading extends StatelessWidget {
+  const _FavoritesLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: .74,
       ),
+      itemCount: 4,
+      itemBuilder: (_, __) => const ShimmerCard(),
     );
   }
 }

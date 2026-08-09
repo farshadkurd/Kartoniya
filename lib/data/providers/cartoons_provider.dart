@@ -1,258 +1,187 @@
-// lib/data/providers/cartoons_provider.dart
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/cartoon_model.dart';
+import 'dart:async';
 
-// ═══════════════════════════════════════
-// Provider اصلی لیست کارتون‌ها
-// ═══════════════════════════════════════
-final cartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
-  // تأخیر مصنوعی برای نمایش انیمیشن لودینگ
-  await Future.delayed(const Duration(seconds: 2));
-  return _sampleCartoons;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/services/app_preferences.dart';
+import '../../core/utils/text_normalizer.dart';
+import '../../domain/repositories/cartoon_repository.dart';
+import '../models/cartoon_model.dart';
+import '../repositories/local_cartoon_repository.dart';
+
+/// در [main] با نمونهٔ واقعی SharedPreferences override می‌شود.
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError('SharedPreferences باید هنگام شروع برنامه فراهم شود.');
 });
 
-// ═══════════════════════════════════════
-// Provider فیلتر شده بر اساس دسته‌بندی
-// ═══════════════════════════════════════
+final appPreferencesProvider = Provider<AppPreferences>((ref) {
+  return AppPreferences(ref.watch(sharedPreferencesProvider));
+});
+
+final cartoonRepositoryProvider = Provider<CartoonRepository>((ref) {
+  return LocalCartoonRepository();
+});
+
+final cartoonsProvider = FutureProvider<List<CartoonModel>>((ref) {
+  return ref.watch(cartoonRepositoryProvider).fetchCartoons();
+});
+
+final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) {
+  return ref.watch(cartoonRepositoryProvider).fetchCategories();
+});
+
+final featuredCartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
+  final cartoons = await ref.watch(cartoonsProvider.future);
+  return cartoons.where((cartoon) => cartoon.isFeatured).toList(growable: false);
+});
+
+final newCartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
+  final cartoons = await ref.watch(cartoonsProvider.future);
+  return cartoons.where((cartoon) => cartoon.isNew).toList(growable: false);
+});
+
 final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 
 final filteredCartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
-  final category = ref.watch(selectedCategoryProvider);
-  final allCartoons = await ref.watch(cartoonsProvider.future);
-  
-  if (category == null) return allCartoons;
-  return allCartoons.where((c) => c.category == category).toList();
+  final selectedCategory = ref.watch(selectedCategoryProvider);
+  final cartoons = await ref.watch(cartoonsProvider.future);
+  if (selectedCategory == null) return cartoons;
+  return cartoons
+      .where((cartoon) => cartoon.category == selectedCategory)
+      .toList(growable: false);
 });
 
-// ═══════════════════════════════════════
-// Provider علاقه‌مندی‌ها
-// ═══════════════════════════════════════
-final favoritesProvider = StateNotifierProvider<FavoritesNotifier, Set<String>>((ref) {
-  return FavoritesNotifier();
-});
-
-class FavoritesNotifier extends StateNotifier<Set<String>> {
-  FavoritesNotifier() : super({});
-
-  void toggle(String cartoonId) {
-    if (state.contains(cartoonId)) {
-      state = {...state}..remove(cartoonId);
-    } else {
-      state = {...state, cartoonId};
-    }
-  }
-
-  bool isFavorite(String cartoonId) => state.contains(cartoonId);
-}
-
-// ═══════════════════════════════════════
-// Provider جستجو
-// ═══════════════════════════════════════
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final searchResultsProvider = FutureProvider<List<CartoonModel>>((ref) async {
-  final query = ref.watch(searchQueryProvider);
-  if (query.isEmpty) return [];
-  
-  final allCartoons = await ref.watch(cartoonsProvider.future);
-  return allCartoons.where((c) => 
-    c.title.contains(query) || 
-    c.category.contains(query) ||
-    c.tags.any((tag) => tag.contains(query))
-  ).toList();
+  final query = normalizeForSearch(ref.watch(searchQueryProvider));
+  if (query.isEmpty) return const <CartoonModel>[];
+  final cartoons = await ref.watch(cartoonsProvider.future);
+  return cartoons.where((cartoon) {
+    final searchableText = <String>[
+      cartoon.title,
+      cartoon.description,
+      cartoon.category,
+      ...cartoon.tags,
+    ].join(' ');
+    return normalizeForSearch(searchableText).contains(query);
+  }).toList(growable: false);
 });
 
-// ═══════════════════════════════════════
-// Provider ویژه (Featured)
-// ═══════════════════════════════════════
-final featuredCartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
-  final allCartoons = await ref.watch(cartoonsProvider.future);
-  return allCartoons.where((c) => c.isFeatured).toList();
+final favoritesProvider =
+    StateNotifierProvider<FavoritesNotifier, Set<String>>((ref) {
+  return FavoritesNotifier(ref.watch(appPreferencesProvider));
 });
 
-// ═══════════════════════════════════════
-// Provider جدیدها
-// ═══════════════════════════════════════
-final newCartoonsProvider = FutureProvider<List<CartoonModel>>((ref) async {
-  final allCartoons = await ref.watch(cartoonsProvider.future);
-  return allCartoons.where((c) => c.isNew).toList();
+class FavoritesNotifier extends StateNotifier<Set<String>> {
+  FavoritesNotifier(this._preferences) : super(_preferences.favoriteIds);
+
+  final AppPreferences _preferences;
+
+  void toggle(String cartoonId) {
+    final next = <String>{...state};
+    if (!next.add(cartoonId)) next.remove(cartoonId);
+    state = Set<String>.unmodifiable(next);
+    unawaited(_preferences.saveFavoriteIds(state));
+  }
+
+  Future<void> clear() async {
+    state = const <String>{};
+    await _preferences.clearFavorites();
+  }
+}
+
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  return ThemeModeNotifier(ref.watch(appPreferencesProvider));
 });
 
-// ═══════════════════════════════════════
-// Provider دسته‌بندی‌ها
-// ═══════════════════════════════════════
-final categoriesProvider = Provider<List<CategoryModel>>((ref) {
-  return _sampleCategories;
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  ThemeModeNotifier(this._preferences) : super(_preferences.themeMode);
+
+  final AppPreferences _preferences;
+
+  Future<void> setMode(ThemeMode mode) async {
+    state = mode;
+    await _preferences.saveThemeMode(mode);
+  }
+}
+
+final autoplayProvider = StateNotifierProvider<AutoplayNotifier, bool>((ref) {
+  return AutoplayNotifier(ref.watch(appPreferencesProvider));
 });
 
-// ═══════════════════════════════════════
-// داده‌های نمونه
-// ═══════════════════════════════════════
-const _sampleCategories = [
-  CategoryModel(id: 'all', name: 'همه', emoji: '🌟'),
-  CategoryModel(id: 'adventure', name: 'ماجراجویی', emoji: '🚀', color: '#FF6B6B'),
-  CategoryModel(id: 'education', name: 'آموزشی', emoji: '📚', color: '#5AC8FA'),
-  CategoryModel(id: 'fun', name: 'سرگرمی', emoji: '🎪', color: '#FF6B9D'),
-  CategoryModel(id: 'art', name: 'هنری', emoji: '🎨', color: '#C9A0FF'),
-  CategoryModel(id: 'science', name: 'علمی', emoji: '🔬', color: '#7DD956'),
-  CategoryModel(id: 'music', name: 'موسیقی', emoji: '🎵', color: '#FFD93D'),
-];
+class AutoplayNotifier extends StateNotifier<bool> {
+  AutoplayNotifier(this._preferences) : super(_preferences.autoplayEnabled);
 
-final _sampleCartoons = [
-  CartoonModel(
-    id: '1',
-    title: 'ماجراهای فِلَک',
-    description: 'فلک، ابر کوچولوی مهربون، با دوستاش توی آسمون ماجراجویی می‌کنه!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon1/400/300',
-    category: 'ماجراجویی',
-    duration: 15,
-    rating: 4.8,
-    isNew: true,
-    isFeatured: true,
-    episodeCount: 12,
-    ageRange: '۳-۷',
-    tags: ['ابر', 'آسمان', 'ماجراجویی'],
-  ),
-  CartoonModel(
-    id: '2',
-    title: 'الفبای شاد',
-    description: 'با آهنگ و بازی، حروف فارسی رو یاد بگیر!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon2/400/300',
-    category: 'آموزشی',
-    duration: 10,
-    rating: 4.9,
-    isFeatured: true,
-    episodeCount: 32,
-    ageRange: '۴-۶',
-    tags: ['الفبا', 'یادگیری', 'فارسی'],
-  ),
-  CartoonModel(
-    id: '3',
-    title: 'دنیای ریاضی جادویی',
-    description: 'اعداد جادویی منتظرتن! با دوستات بشمار و حل کن.',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon3/400/300',
-    category: 'آموزشی',
-    duration: 12,
-    rating: 4.7,
-    isNew: true,
-    episodeCount: 20,
-    ageRange: '۵-۸',
-    tags: ['ریاضی', 'اعداد', 'آموزش'],
-  ),
-  CartoonModel(
-    id: '4',
-    title: 'قصه‌های شب‌بخیر',
-    description: 'قصه‌های آرام و قشنگ برای خواب خوش کوچولوها.',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon4/400/300',
-    category: 'سرگرمی',
-    duration: 20,
-    rating: 4.9,
-    isFeatured: true,
-    episodeCount: 25,
-    ageRange: '۲-۵',
-    tags: ['قصه', 'خواب', 'آرام'],
-  ),
-  CartoonModel(
-    id: '5',
-    title: 'کارگاه آشپزی کوچولو',
-    description: 'با بچه‌های آشپز، غذاهای خوشمزه و سالم درست کن!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon5/400/300',
-    category: 'هنری',
-    duration: 18,
-    rating: 4.6,
-    episodeCount: 15,
-    ageRange: '۵-۹',
-    tags: ['آشپزی', 'هنر', 'خلاقیت'],
-  ),
-  CartoonModel(
-    id: '6',
-    title: 'مسابقه ماشین‌ها',
-    description: 'ماشین‌های رنگی مسابقه می‌دن! کی برنده می‌شه؟',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon6/400/300',
-    category: 'ماجراجویی',
-    duration: 14,
-    rating: 4.5,
-    isNew: true,
-    episodeCount: 18,
-    ageRange: '۳-۷',
-    tags: ['ماشین', 'مسابقه', 'هیجان'],
-  ),
-  CartoonModel(
-    id: '7',
-    title: 'باغ رنگین‌کمان',
-    description: 'گل‌ها و حیوانات باغ رنگین‌کمان منتظرت هستن!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon7/400/300',
-    category: 'سرگرمی',
-    duration: 16,
-    rating: 4.8,
-    isFeatured: true,
-    episodeCount: 22,
-    ageRange: '۲-۶',
-    tags: ['گل', 'حیوانات', 'طبیعت'],
-  ),
-  CartoonModel(
-    id: '8',
-    title: 'آزمایشگاه کوچولو',
-    description: 'آزمایش‌های علمی ساده و جالب برای بچه‌های کنجکاو!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon8/400/300',
-    category: 'علمی',
-    duration: 15,
-    rating: 4.7,
-    isNew: true,
-    episodeCount: 10,
-    ageRange: '۶-۱۰',
-    tags: ['علم', 'آزمایش', 'کنجکاوی'],
-  ),
-  CartoonModel(
-    id: '9',
-    title: 'ملودی جنگل',
-    description: 'حیوانات جنگل با هم آهنگ می‌خونن! برقص و بخون!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon9/400/300',
-    category: 'موسیقی',
-    duration: 12,
-    rating: 4.6,
-    episodeCount: 14,
-    ageRange: '۲-۵',
-    tags: ['موسیقی', 'جنگل', 'رقص'],
-  ),
-  CartoonModel(
-    id: '10',
-    title: 'نقاشی با انگشت',
-    description: 'یاد بگیر با انگشتات نقاشی‌های قشنگ بکشی!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon10/400/300',
-    category: 'هنری',
-    duration: 20,
-    rating: 4.8,
-    isFeatured: true,
-    isNew: true,
-    episodeCount: 16,
-    ageRange: '۳-۸',
-    tags: ['نقاشی', 'هنر', 'خلاقیت'],
-  ),
-  CartoonModel(
-    id: '11',
-    title: 'ستاره‌های کوچولو',
-    description: 'با ستاره‌ها به فضا سفر کن و سیاره‌ها رو بشناس!',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon11/400/300',
-    category: 'علمی',
-    duration: 18,
-    rating: 4.9,
-    isFeatured: true,
-    episodeCount: 8,
-    ageRange: '۵-۹',
-    tags: ['فضا', 'ستاره', 'سیاره'],
-  ),
-  CartoonModel(
-    id: '12',
-    title: 'دوستی پروانه‌ها',
-    description: 'داستان دوستی قشنگ بین پروانه‌های رنگی.',
-    thumbnailUrl: 'https://picsum.photos/seed/cartoon12/400/300',
-    category: 'سرگرمی',
-    duration: 10,
-    rating: 4.7,
-    isNew: true,
-    episodeCount: 20,
-    ageRange: '۲-۵',
-    tags: ['پروانه', 'دوستی', 'طبیعت'],
-  ),
-];
+  final AppPreferences _preferences;
+
+  Future<void> setEnabled(bool value) async {
+    state = value;
+    await _preferences.saveAutoplayEnabled(value);
+  }
+}
+
+final profileNameProvider = StateNotifierProvider<ProfileNameNotifier, String>((ref) {
+  return ProfileNameNotifier(ref.watch(appPreferencesProvider));
+});
+
+class ProfileNameNotifier extends StateNotifier<String> {
+  ProfileNameNotifier(this._preferences) : super(_preferences.parentName);
+
+  final AppPreferences _preferences;
+
+  Future<void> update(String value) async {
+    final next = value.trim().isEmpty ? 'والد مهربان' : value.trim();
+    state = next;
+    await _preferences.saveParentName(next);
+  }
+}
+
+final onboardingProvider = StateNotifierProvider<OnboardingNotifier, bool>((ref) {
+  return OnboardingNotifier(ref.watch(appPreferencesProvider));
+});
+
+class OnboardingNotifier extends StateNotifier<bool> {
+  OnboardingNotifier(this._preferences) : super(_preferences.onboardingCompleted);
+
+  final AppPreferences _preferences;
+
+  Future<void> complete() async {
+    state = true;
+    await _preferences.completeOnboarding();
+  }
+}
+
+final watchHistoryProvider =
+    StateNotifierProvider<WatchHistoryNotifier, Map<String, double>>((ref) {
+  return WatchHistoryNotifier(ref.watch(appPreferencesProvider));
+});
+
+class WatchHistoryNotifier extends StateNotifier<Map<String, double>> {
+  WatchHistoryNotifier(this._preferences)
+      : super(Map<String, double>.unmodifiable(_preferences.watchProgress));
+
+  final AppPreferences _preferences;
+
+  void saveProgress(String episodeId, double value) {
+    final normalized = value.clamp(0.0, 1.0).toDouble();
+    final next = <String, double>{...state};
+    if (normalized >= .995) {
+      next.remove(episodeId);
+    } else if (normalized > .01) {
+      next[episodeId] = normalized;
+    }
+    state = Map<String, double>.unmodifiable(next);
+    unawaited(_preferences.saveWatchProgress(state));
+  }
+
+  Future<void> clear() async {
+    state = const <String, double>{};
+    await _preferences.clearWatchProgress();
+  }
+}
+
+final episodeProgressProvider = Provider.family<double, String>((ref, episodeId) {
+  return ref.watch(watchHistoryProvider)[episodeId] ?? 0.0;
+});

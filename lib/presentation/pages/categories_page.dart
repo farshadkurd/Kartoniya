@@ -1,8 +1,6 @@
-// lib/presentation/pages/categories_page.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/cartoon_model.dart';
@@ -11,220 +9,116 @@ import '../widgets/cartoon_card.dart';
 import '../widgets/shimmer_loader.dart';
 import 'cartoon_detail_page.dart';
 
-/// 🏷️ صفحه دسته‌بندی‌ها
-class CategoriesPage extends ConsumerStatefulWidget {
+class CategoriesPage extends ConsumerWidget {
   const CategoriesPage({super.key});
 
   @override
-  ConsumerState<CategoriesPage> createState() => _CategoriesPageState();
-}
-
-class _CategoriesPageState extends ConsumerState<CategoriesPage> {
-  String? _selectedCategory;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
-    final cartoonsAsync = ref.watch(cartoonsProvider);
+    final cartoons = ref.watch(cartoonsProvider);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
 
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // هدر
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     gradient: AppColors.coolGradient,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  child: const Icon(
-                    Icons.grid_view_rounded,
-                    color: AppColors.textOnPrimary,
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.grid_view_rounded, color: Colors.white),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'دسته‌بندی‌ها',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                Expanded(
+                  child: Text(
+                    'دسته‌بندی‌ها',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // لیست دسته‌بندی‌ها (افقی)
           SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = (cat.id == 'all' && _selectedCategory == null) ||
-                    cat.name == _selectedCategory;
-
-                return GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _selectedCategory = cat.id == 'all' ? null : cat.name;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    width: 80,
-                    margin: EdgeInsets.only(
-                      left: index == categories.length - 1 ? 0 : 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.getCategoryColor(cat.name)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : AppColors.textHint.withOpacity(0.15),
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: AppColors.getCategoryColor(cat.name)
-                                    .withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          cat.emoji,
-                          style: const TextStyle(fontSize: 24),
+            height: 62,
+            child: categories.when(
+              data: (items) => ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                physics: const BouncingScrollPhysics(),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 9),
+                itemBuilder: (context, index) {
+                  final category = items[index];
+                  final selected = (category.id == 'all' && selectedCategory == null) ||
+                      category.name == selectedCategory;
+                  return FilterChip(
+                    selected: selected,
+                    showCheckmark: false,
+                    avatar: Text(category.emoji),
+                    label: Text(category.name),
+                    selectedColor: category.color.withOpacity(.2),
+                    labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: selected ? category.color : context.secondaryTextColor,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          cat.name,
-                          style: TextStyle(
-                            fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                            fontSize: 11,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected
-                                ? AppColors.textOnPrimary
-                                : AppColors.textSecondary,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                    onSelected: (_) {
+                      ref.read(selectedCategoryProvider.notifier).state =
+                          category.id == 'all' ? null : category.name;
+                    },
+                  );
+                },
+              ),
+              loading: () => const _CategoryChipsSkeleton(),
+              error: (_, __) => Center(
+                child: TextButton.icon(
+                  onPressed: () => ref.invalidate(categoriesProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('بارگذاری دسته‌ها'),
+                ),
+              ),
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // گرید کارتون‌ها
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: Text(
+              selectedCategory == null ? 'همهٔ کارتون‌ها' : selectedCategory,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
           Expanded(
-            child: cartoonsAsync.when(
-              data: (cartoons) {
-                final filtered = _selectedCategory == null
-                    ? cartoons
-                    : cartoons
-                        .where((c) => c.category == _selectedCategory)
-                        .toList();
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('🔍', style: TextStyle(fontSize: 50)),
-                        const SizedBox(height: 12),
-                        Text(
-                          'کارتونی پیدا نشد',
-                          style: TextStyle(
-                            fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                            fontSize: 16,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
+            child: cartoons.when(
+              data: (items) {
+                final visible = selectedCategory == null
+                    ? items
+                    : items
+                        .where((item) => item.category == selectedCategory)
+                        .toList(growable: false);
+                if (visible.isEmpty) return const _NoCategoryContent();
                 return GridView.builder(
-                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.75,
+                  physics: const BouncingScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: .74,
                   ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return CartoonCard(
-                      cartoon: filtered[index],
-                      index: index,
-                      onTap: () => _navigateToDetail(filtered[index]),
-                    );
-                  },
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) => CartoonCard(
+                    cartoon: visible[index],
+                    onTap: () => _openDetail(context, visible[index]),
+                  ),
                 );
               },
-              loading: () => GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.75,
-                ),
-                itemCount: 6,
-                itemBuilder: (context, index) => const ShimmerCard(),
-              ),
-              error: (e, s) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_rounded,
-                      size: 48,
-                      color: AppColors.textHint,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'خطا در بارگذاری',
-                      style: TextStyle(
-                        fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+              loading: () => const _CategoryGridLoading(),
+              error: (_, __) => _CategoryError(
+                onRetry: () => ref.invalidate(cartoonsProvider),
               ),
             ),
           ),
@@ -233,31 +127,91 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
     );
   }
 
-  void _navigateToDetail(CartoonModel cartoon) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CartoonDetailPage(cartoon: cartoon),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
+  void _openDetail(BuildContext context, CartoonModel cartoon) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => CartoonDetailPage(cartoon: cartoon)),
+    );
+  }
+}
+
+class _CategoryChipsSkeleton extends StatelessWidget {
+  const _CategoryChipsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+      itemCount: 4,
+      separatorBuilder: (_, __) => const SizedBox(width: 9),
+      itemBuilder: (_, __) => Container(
+        width: 92,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCircular),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryGridLoading extends StatelessWidget {
+  const _CategoryGridLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: .74,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, __) => const ShimmerCard(),
+    );
+  }
+}
+
+class _NoCategoryContent extends StatelessWidget {
+  const _NoCategoryContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🧩', style: TextStyle(fontSize: 52)),
+            const SizedBox(height: 14),
+            Text('هنوز چیزی در این دسته نیست', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            Text(
+              'یک دستهٔ دیگر را امتحان کن.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 0.1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryError extends StatelessWidget {
+  const _CategoryError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: OutlinedButton.icon(
+        onPressed: onRetry,
+        icon: const Icon(Icons.refresh_rounded),
+        label: const Text('تلاش دوباره'),
       ),
     );
   }

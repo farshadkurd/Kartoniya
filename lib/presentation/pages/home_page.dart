@@ -1,23 +1,21 @@
-// lib/presentation/pages/home_page.dart
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/full_screen_utils.dart';
 import '../../data/models/cartoon_model.dart';
 import '../../data/providers/cartoons_provider.dart';
+import '../widgets/cartoon_artwork.dart';
 import '../widgets/cartoon_card.dart';
 import '../widgets/shimmer_loader.dart';
 import 'cartoon_detail_page.dart';
-import 'about_us_page.dart';
-import 'favorites_page.dart';
-import 'search_page.dart';
 import 'categories_page.dart';
+import 'favorites_page.dart';
+import 'profile_page.dart';
+import 'search_page.dart';
 
-/// 🏠 صفحه اصلی کارتونیا
+/// پوستهٔ اصلی برنامه. IndexedStack وضعیت هر برگه (به‌ویژه جست‌وجو) را هنگام
+/// جابه‌جایی در نوار پایین حفظ می‌کند.
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -25,808 +23,606 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage>
-    with TickerProviderStateMixin {
-  int _currentNavIndex = 0;
-  late AnimationController _headerController;
-  late Animation<double> _headerSlide;
-  late Animation<double> _headerOpacity;
+class _HomePageState extends ConsumerState<HomePage> {
+  var _selectedIndex = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    FullScreenUtils.setLightStatusBar();
-
-    _headerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _headerSlide = Tween<double>(begin: -30.0, end: 0.0).animate(
-      CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic),
-    );
-
-    _headerOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _headerController,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
-      ),
-    );
-
-    _headerController.forward();
-  }
-
-  @override
-  void dispose() {
-    _headerController.dispose();
-    super.dispose();
-  }
+  void _selectTab(int index) => setState(() => _selectedIndex = index);
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: _buildBody(),
-        bottomNavigationBar: _buildBottomNav(),
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          _DiscoverTab(
+            onOpenCategories: () => _selectTab(1),
+            onOpenProfile: () => _selectTab(4),
+          ),
+          const CategoriesPage(),
+          const FavoritesPage(),
+          const SearchPage(),
+          const ProfilePage(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'خانه',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded),
+            label: 'دسته‌ها',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.favorite_border_rounded),
+            selectedIcon: Icon(Icons.favorite_rounded),
+            label: 'دلخواه',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search_rounded),
+            selectedIcon: Icon(Icons.search_rounded),
+            label: 'جست‌وجو',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'والدین',
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildBody() {
-    switch (_currentNavIndex) {
-      case 0:
-        return _buildHomeContent();
-      case 1:
-        return const CategoriesPage();
-      case 2:
-        return const FavoritesPage();
-      case 3:
-        return const SearchPage();
-      default:
-        return _buildHomeContent();
-    }
-  }
+class _DiscoverTab extends ConsumerWidget {
+  const _DiscoverTab({
+    required this.onOpenCategories,
+    required this.onOpenProfile,
+  });
 
-  Widget _buildHomeContent() {
-    final cartoonsAsync = ref.watch(cartoonsProvider);
-    final featuredAsync = ref.watch(featuredCartoonsProvider);
-    final newCartoonsAsync = ref.watch(newCartoonsProvider);
+  final VoidCallback onOpenCategories;
+  final VoidCallback onOpenProfile;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartoons = ref.watch(cartoonsProvider);
+    final categories = ref.watch(categoriesProvider);
+    final favorites = ref.watch(favoritesProvider);
+    final history = ref.watch(watchHistoryProvider);
+    final parentName = ref.watch(profileNameProvider);
 
     return SafeArea(
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // هدر
-          SliverToBoxAdapter(
-            child: AnimatedBuilder(
-              animation: _headerController,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _headerOpacity.value,
-                  child: Transform.translate(
-                    offset: Offset(0, _headerSlide.value),
-                    child: child,
-                  ),
-                );
-              },
-              child: _buildHeader(),
-            ),
-          ),
-
-          // بنر خوش‌آمدگویی
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: _buildWelcomeBanner(),
-            ),
-          ),
-
-          // بخش ویژه (Featured)
-          SliverToBoxAdapter(
-            child: _buildSectionHeader('⭐ ویژه‌ها', 'مشاهده همه'),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 200,
-              child: featuredAsync.when(
-                data: (cartoons) => _buildFeaturedList(cartoons),
-                loading: () => _buildFeaturedShimmer(),
-                error: (e, s) => _buildErrorWidget(),
-              ),
-            ),
-          ),
-
-          // دسته‌بندی‌ها
-          SliverToBoxAdapter(
-            child: _buildSectionHeader('🏷️ دسته‌بندی‌ها', ''),
-          ),
-          SliverToBoxAdapter(
-            child: _buildCategoryChips(),
-          ),
-
-          // جدیدها
-          SliverToBoxAdapter(
-            child: _buildSectionHeader('🆕 تازه‌ها', 'مشاهده همه'),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 200,
-              child: newCartoonsAsync.when(
-                data: (cartoons) => _buildNewCartoonsList(cartoons),
-                loading: () => _buildFeaturedShimmer(),
-                error: (e, s) => _buildErrorWidget(),
-              ),
-            ),
-          ),
-
-          // همه کارتون‌ها
-          SliverToBoxAdapter(
-            child: _buildSectionHeader('🎬 همه کارتون‌ها', ''),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            sliver: cartoonsAsync.when(
-              data: (cartoons) => _buildCartoonsGrid(cartoons),
-              loading: () => _buildCartoonsGridShimmer(),
-              error: (e, s) => SliverToBoxAdapter(
-                child: _buildErrorWidget(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// هدر بالای صفحه
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          // لوگو و نام
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: AppColors.sunsetGradient,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.play_circle_fill_rounded,
-              color: AppColors.textOnPrimary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'کارتونیا',
-                style: TextStyle(
-                  fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  foreground: Paint()
-                    ..shader = const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryDark],
-                    ).createShader(const Rect.fromLTWH(0, 0, 120, 30)),
-                ),
-              ),
-              Text(
-                '🌟 دنیای شاد کودکان',
-                style: TextStyle(
-                  fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          // دکمه درباره ما
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      const AboutUsPage(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(-1.0, 0.0),
-                        end: Offset.zero,
-                      ).animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
-                      )),
-                      child: child,
-                    );
-                  },
-                  transitionDuration: const Duration(milliseconds: 400),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                boxShadow: AppTheme.softShadow,
-              ),
-              child: const Icon(
-                Icons.info_outline_rounded,
-                color: AppColors.primary,
-                size: 22,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// بنر خوش‌آمدگویی
-  Widget _buildWelcomeBanner() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'سلام کوچولو! 👋',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textOnPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'کارتون مورد علاقت رو پیدا کن و تماشا کن!',
-                  style: TextStyle(
-                    fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                    fontSize: 13,
-                    color: AppColors.textOnPrimary.withOpacity(0.85),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // ایموجی بزرگ
-          const Text(
-            '🎬',
-            style: TextStyle(fontSize: 50),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// هدر بخش
-  Widget _buildSectionHeader(String title, String action) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const Spacer(),
-          if (action.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                // TODO: مشاهده همه
-              },
-              child: Text(
-                action,
-                style: TextStyle(
-                  fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                  fontSize: 13,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// لیست ویژه (افقی)
-  Widget _buildFeaturedList(List<CartoonModel> cartoons) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: cartoons.length,
-      itemBuilder: (context, index) {
-        final cartoon = cartoons[index];
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _navigateToDetail(cartoon);
-          },
-          child: Container(
-            width: 280,
-            margin: EdgeInsets.only(
-              left: index == cartoons.length - 1 ? 0 : 16,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              boxShadow: AppTheme.mediumShadow,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // تصویر
-                  Image.network(
-                    cartoon.thumbnailUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Container(
-                      color: AppColors.primarySoft,
-                      child: const Icon(
-                        Icons.movie_rounded,
-                        size: 50,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-
-                  // گرادیان
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // محتوا
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    left: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (cartoon.isNew)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent1,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '✨ جدید',
-                              style: TextStyle(
-                                fontFamily:
-                                    GoogleFonts.vazirmatn().fontFamily,
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        if (cartoon.isNew) const SizedBox(height: 8),
-                        Text(
-                          cartoon.title,
-                          style: TextStyle(
-                            fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              color: AppColors.starYellow,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              cartoon.rating.toStringAsFixed(1),
-                              style: TextStyle(
-                                fontFamily:
-                                    GoogleFonts.vazirmatn().fontFamily,
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Icon(
-                              Icons.access_time_rounded,
-                              color: Colors.white70,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${cartoon.duration} دقیقه',
-                              style: TextStyle(
-                                fontFamily:
-                                    GoogleFonts.vazirmatn().fontFamily,
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // آیکون پخش
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// لیست جدیدها (افقی)
-  Widget _buildNewCartoonsList(List<CartoonModel> cartoons) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: cartoons.length,
-      itemBuilder: (context, index) {
-        final cartoon = cartoons[index];
-        return Container(
-          width: 160,
-          margin: EdgeInsets.only(
-            left: index == cartoons.length - 1 ? 0 : 12,
-          ),
-          child: CartoonCard(
-            cartoon: cartoon,
-            index: index,
-            onTap: () => _navigateToDetail(cartoon),
-          ),
-        );
-      },
-    );
-  }
-
-  /// چیپ‌های دسته‌بندی
-  Widget _buildCategoryChips() {
-    final categories = ref.watch(categoriesProvider);
-    final selectedCategory = ref.watch(selectedCategoryProvider);
-
-    return SizedBox(
-      height: 44,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final cat = categories[index];
-          final isSelected = (cat.id == 'all' && selectedCategory == null) ||
-              cat.name == selectedCategory;
-
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ref.read(selectedCategoryProvider.notifier).state =
-                  cat.id == 'all' ? null : cat.name;
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              margin: EdgeInsets.only(
-                left: index == categories.length - 1 ? 0 : 8,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radiusCircular),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textHint.withOpacity(0.2),
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    cat.emoji,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    cat.name,
-                    style: TextStyle(
-                      fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                      fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected
-                          ? AppColors.textOnPrimary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(cartoonsProvider);
+          ref.invalidate(categoriesProvider);
+          await ref.read(cartoonsProvider.future);
         },
-      ),
-    );
-  }
-
-  /// گرید کارتون‌ها
-  Widget _buildCartoonsGrid(List<CartoonModel> cartoons) {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.75,
-      ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: Duration(milliseconds: 600 + (index * 100)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: child,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: _HomeHeader(
+                  parentName: parentName,
+                  onProfileTap: onOpenProfile,
                 ),
-              );
-            },
-            child: CartoonCard(
-              cartoon: cartoons[index],
-              index: index,
-              onTap: () => _navigateToDetail(cartoons[index]),
-            ),
-          );
-        },
-        childCount: cartoons.length,
-      ),
-    );
-  }
-
-  /// شیمر گرید
-  Widget _buildCartoonsGridShimmer() {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.75,
-      ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => const ShimmerCard(),
-        childCount: 6,
-      ),
-    );
-  }
-
-  /// شیمر ویژه
-  Widget _buildFeaturedShimmer() {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: 3,
-      itemBuilder: (context, index) => Container(
-        width: 280,
-        height: 200,
-        margin: const EdgeInsets.only(left: 16),
-        child: const ShimmerBanner(),
-      ),
-    );
-  }
-
-  /// ویجت خطا
-  Widget _buildErrorWidget() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.cloud_off_rounded,
-            size: 48,
-            color: AppColors.textHint,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'خطا در بارگذاری',
-            style: TextStyle(
-              fontFamily: GoogleFonts.vazirmatn().fontFamily,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// نوار پیمایش پایین
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, Icons.home_rounded, 'خانه'),
-              _buildNavItem(1, Icons.grid_view_rounded, 'دسته‌بندی'),
-              _buildNavItem(2, Icons.favorite_rounded, 'علاقه‌مندی'),
-              _buildNavItem(3, Icons.search_rounded, 'جستجو'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isSelected = _currentNavIndex == index;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() => _currentNavIndex = index);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.primary : AppColors.textHint,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: GoogleFonts.vazirmatn().fontFamily,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColors.primary : AppColors.textHint,
               ),
             ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _WelcomeBanner(onTap: onOpenCategories),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: 'برای امروز انتخاب کن',
+                action: 'دسته‌بندی‌ها',
+                onAction: onOpenCategories,
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 48,
+                child: categories.when(
+                  data: (items) => ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final category = items[index];
+                      return ActionChip(
+                        avatar: Text(category.emoji),
+                        label: Text(category.name),
+                        onPressed: () {
+                          ref.read(selectedCategoryProvider.notifier).state =
+                              category.id == 'all' ? null : category.name;
+                          onOpenCategories();
+                        },
+                      );
+                    },
+                  ),
+                  loading: () => const _ChipsLoading(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            if (history.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _SectionTitle(title: 'ادامهٔ تماشا'),
+              ),
+            if (history.isNotEmpty)
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 202,
+                  child: cartoons.when(
+                    data: (items) => _ContinueWatchingList(
+                      cartoons: items,
+                      progress: history,
+                      onTap: (cartoon) => _openDetail(context, cartoon),
+                    ),
+                    loading: () => const _HorizontalLoading(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: 'پیشنهاد ویژه',
+                action: 'همه',
+                onAction: onOpenCategories,
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 218,
+                child: cartoons.when(
+                  data: (items) => _HorizontalCartoonList(
+                    cartoons: items.where((item) => item.isFeatured).toList(),
+                    onTap: (cartoon) => _openDetail(context, cartoon),
+                  ),
+                  loading: () => const _HorizontalLoading(),
+                  error: (_, __) => _InlineError(
+                    onRetry: () => ref.invalidate(cartoonsProvider),
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: _SectionTitle(title: 'همهٔ کارتون‌ها'),
+            ),
+            cartoons.when(
+              data: (items) => _CartoonGridSliver(
+                cartoons: items,
+                onTap: (cartoon) => _openDetail(context, cartoon),
+              ),
+              loading: () => const _CartoonGridLoadingSliver(),
+              error: (_, __) => SliverToBoxAdapter(
+                child: _PageError(
+                  title: 'کاتالوگ باز نشد',
+                  description: 'اتصال را بررسی کنید و دوباره تلاش کنید.',
+                  onRetry: () => ref.invalidate(cartoonsProvider),
+                ),
+              ),
+            ),
+            if (favorites.isNotEmpty)
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
         ),
       ),
     );
   }
 
-  /// رفتن به صفحه جزئیات
-  void _navigateToDetail(CartoonModel cartoon) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CartoonDetailPage(cartoon: cartoon),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
+  void _openDetail(BuildContext context, CartoonModel cartoon) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => CartoonDetailPage(cartoon: cartoon)),
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.parentName, required this.onProfileTap});
+
+  final String parentName;
+  final VoidCallback onProfileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            gradient: AppColors.sunsetGradient,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('کارتونیا', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'سلام $parentName 👋',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: 'پروفایل والدین',
+          onPressed: onProfileTap,
+          icon: const Icon(Icons.tune_rounded),
+        ),
+      ],
+    );
+  }
+}
+
+class _WelcomeBanner extends StatelessWidget {
+  const _WelcomeBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'باز کردن دسته‌بندی‌ها',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        child: Ink(
+          height: 148,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(.25),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'وقت یک ماجرای تازه است!',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'کوتاه، شاد و مناسب کوچولوها',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(.88),
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('دیدن دسته‌ها', style: TextStyle(color: Colors.white)),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_back_rounded, color: Colors.white, size: 18),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Text('🎬', style: TextStyle(fontSize: 62)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({this.title = '', this.action, this.onAction});
+
+  final String title;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
+          if (action != null)
+            TextButton(onPressed: onAction, child: Text(action!)),
+        ],
+      ),
+    );
+  }
+}
+
+class _HorizontalCartoonList extends StatelessWidget {
+  const _HorizontalCartoonList({required this.cartoons, required this.onTap});
+
+  final List<CartoonModel> cartoons;
+  final ValueChanged<CartoonModel> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (cartoons.isEmpty) return const SizedBox.shrink();
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: cartoons.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) => SizedBox(
+        width: 208,
+        child: CartoonCard(
+          cartoon: cartoons[index],
+          compact: true,
+          onTap: () => onTap(cartoons[index]),
+        ),
+      ),
+    );
+  }
+}
+
+class _ContinueWatchingList extends StatelessWidget {
+  const _ContinueWatchingList({
+    required this.cartoons,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final List<CartoonModel> cartoons;
+  final Map<String, double> progress;
+  final ValueChanged<CartoonModel> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <_WatchingEntry>[];
+    for (final cartoon in cartoons) {
+      for (final episode in cartoon.episodes) {
+        final amount = progress[episode.id];
+        if (amount != null && amount > 0) {
+          entries.add(_WatchingEntry(cartoon, episode.title, amount));
+        }
+      }
+    }
+    if (entries.isEmpty) return const SizedBox.shrink();
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: entries.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        final color = entry.cartoon.artworkColor;
+        return SizedBox(
+          width: 224,
+          child: Semantics(
+            button: true,
+            label: 'ادامه ${entry.cartoon.title}، ${entry.episodeTitle}',
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onTap(entry.cartoon),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: CartoonArtwork(
+                        cartoon: entry.cartoon,
+                        showTitle: true,
+                        showPlayAffordance: false,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.episodeTitle,
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: entry.progress,
+                              minHeight: 6,
+                              color: color,
+                              backgroundColor: color.withOpacity(.14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 0.1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
-              child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WatchingEntry {
+  const _WatchingEntry(this.cartoon, this.episodeTitle, this.progress);
+
+  final CartoonModel cartoon;
+  final String episodeTitle;
+  final double progress;
+}
+
+class _CartoonGridSliver extends StatelessWidget {
+  const _CartoonGridSliver({required this.cartoons, required this.onTap});
+
+  final List<CartoonModel> cartoons;
+  final ValueChanged<CartoonModel> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 210,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: .74,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => CartoonCard(
+            cartoon: cartoons[index],
+            onTap: () => onTap(cartoons[index]),
+          ),
+          childCount: cartoons.length,
+        ),
+      ),
+    );
+  }
+}
+
+class _CartoonGridLoadingSliver extends StatelessWidget {
+  const _CartoonGridLoadingSliver();
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 210,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: .74,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (_, __) => const ShimmerCard(),
+          childCount: 6,
+        ),
+      ),
+    );
+  }
+}
+
+class _HorizontalLoading extends StatelessWidget {
+  const _HorizontalLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: 2,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (_, __) => const SizedBox(width: 208, child: ShimmerCard(compact: true)),
+    );
+  }
+}
+
+class _ChipsLoading extends StatelessWidget {
+  const _ChipsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: 4,
+      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      itemBuilder: (_, __) => Container(
+        width: 88,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCircular),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton.icon(
+        onPressed: onRetry,
+        icon: const Icon(Icons.refresh_rounded),
+        label: const Text('تلاش دوباره'),
+      ),
+    );
+  }
+}
+
+class _PageError extends StatelessWidget {
+  const _PageError({
+    required this.title,
+    required this.description,
+    required this.onRetry,
+  });
+
+  final String title;
+  final String description;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(28),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 52, color: context.secondaryTextColor),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 5),
+            Text(description, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('تلاش دوباره'),
             ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+          ],
+        ),
       ),
     );
   }
